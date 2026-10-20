@@ -1,0 +1,1952 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control Logístico de Cajas - Medline</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Librerías para QR y Cámara -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root { --navy:#005ac7; --teal:#0e9f94; --ink:#172b40; --line:#e3eaf0; --bg:#f5f8fa; }
+    * { box-sizing:border-box; margin:0; padding:0; font-family:'DM Sans',sans-serif; }
+    body { color:var(--ink); background:var(--bg); overflow-x:hidden; }
+    button,input,select,textarea { font:inherit; }
+
+    /* PANTALLA DE LOGIN */
+    .login-screen {
+      position:fixed; inset:0; background:linear-gradient(135deg, #0033a0 0%, #005ac7 100%);
+      display:flex; align-items:center; justify-content:center; padding:1.5rem; z-index:1000;
+      transition: opacity 0.5s ease, visibility 0.5s;
+    }
+    .login-screen.hidden { opacity:0; visibility:hidden; pointer-events:none; }
+    
+    .login-card {
+      background:white; border-radius:24px; padding:2.5rem; width:100%; max-width:420px;
+      box-shadow:0 25px 50px rgba(0,0,0,0.3); text-align:center; position:relative;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn { 0%{ transform:scale(0.85); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+
+    .brand-icon-box {
+      width:70px; height:70px; background:#005ac7; border-radius:18px; margin:0 auto 1.2rem auto;
+      display:flex; align-items:center; justify-content:center; color:white; font-size:2rem;
+      box-shadow:0 8px 20px rgba(0,90,199,0.3);
+    }
+
+    .brand-icon-sidebar {
+      width:38px; height:38px; background:#005ac7; border-radius:10px;
+      display:flex; align-items:center; justify-content:center; color:white; font-size:1.2rem;
+    }
+
+    /* OVERLAY ANIMACIÓN BIENVENIDA */
+    .welcome-overlay {
+      position:fixed; inset:0; background:rgba(0, 51, 160, 0.95); backdrop-filter:blur(8px);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      z-index:2000; color:white; text-align:center; padding:2rem;
+      opacity:0; visibility:hidden; transition:all 0.4s ease;
+    }
+    .welcome-overlay.active { opacity:1; visibility:visible; }
+    .welcome-card {
+      animation: welcomeZoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes welcomeZoom { 0%{ transform:scale(0.5); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+
+    .shell { display:flex; flex-direction:column; min-height:100vh; }
+    @media(min-width:768px) { .shell { flex-direction:row; } }
+
+    .sidebar { background:#00205b; padding:1.5rem; width:100%; shrink:0; display:flex; flex-direction:column; justify-content:space-between; }
+    @media(min-width:768px) { .sidebar { width:260px; } }
+
+    .nav-button {
+      width:100%; text-align:left; padding:0.75rem 1rem; border-radius:12px; color:#acc0d1;
+      font-weight:600; background:transparent; border:none; cursor:pointer; margin-bottom:0.25rem;
+      display:flex; align-items:center; gap:0.75rem; transition:all 0.25s ease;
+    }
+    .nav-button:hover { background:#0033a0; color:white; transform:translateX(4px); }
+    .nav-button.active { background:#0033a0; color:white; border-left:4px solid var(--teal); }
+
+    .main-area { flex:1; min-width:0; }
+    header { background:white; border-bottom:1px solid var(--line); padding:1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; }
+    main { padding:1.25rem 1rem; max-width:1600px; margin:0 auto; }
+    @media(min-width:768px) { main { padding:1.75rem 2rem; } }
+
+    .primary { 
+      background:var(--teal); color:white; border:none; border-radius:12px; padding:0.75rem 1.25rem; 
+      font-weight:700; cursor:pointer; transition:all 0.2s ease; box-shadow:0 4px 12px rgba(14,159,148,0.25);
+    }
+    .primary:hover { background:#087f77; transform:translateY(-2px); box-shadow:0 6px 16px rgba(14,159,148,0.35); }
+    .primary:active { transform:translateY(0); }
+
+    .secondary { background:#edf2f5; color:var(--ink); border:none; border-radius:8px; padding:0.4rem 0.8rem; font-weight:700; cursor:pointer; transition:0.2s; }
+    .secondary:hover { background:#e1e9ed; }
+    .danger { background:#fff0ef; color:#ae3e39; border:none; border-radius:8px; padding:0.4rem 0.8rem; font-weight:700; cursor:pointer; transition:0.2s; }
+    .danger:hover { background:#ffe2df; }
+    
+    .btn-whatsapp {
+      background:#25D366; color:white; border:none; border-radius:12px; padding:0.5rem 1rem;
+      font-weight:700; cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem;
+      box-shadow:0 4px 12px rgba(37,211,102,0.25); font-size:0.85rem;
+    }
+    .btn-whatsapp:hover { background:#1eb956; transform:translateY(-2px); }
+
+    .btn-qr {
+      background:#6366f1; color:white; border:none; border-radius:12px; padding:0.5rem 1rem;
+      font-weight:700; cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem;
+      box-shadow:0 4px 12px rgba(99,102,241,0.25); font-size:0.85rem;
+    }
+    .btn-qr:hover { background:#4f46e5; transform:translateY(-2px); }
+
+    .btn-reset {
+      background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:12px; padding:0.5rem 0.9rem;
+      font-weight:700; cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem; font-size:0.85rem;
+    }
+    .btn-reset:hover { background:#e2e8f0; color:#1e293b; }
+
+    .action-btn { 
+      background:#eef6ff; color:#1e40af; border:1px solid #bfdbfe; border-radius:8px; padding:0.25rem 0.6rem; 
+      font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.2s ease; 
+    }
+    .action-btn:hover { background:#dbeafe; transform:scale(1.03); }
+
+    .surface { 
+      background:white; border:1px solid var(--line); border-radius:16px; 
+      box-shadow:0 8px 30px rgba(20,43,62,.045); padding:1.5rem; transition:transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .grid { display:grid; grid-template-columns:1fr; gap:1.5rem; }
+    @media(min-width:1024px) { .grid { grid-template-columns:1fr 1fr; } }
+
+    .module-card { border-top:4px solid var(--mod-color); }
+    .module-card.msm { --mod-color:#42658d; }
+    .module-card.nldc { --mod-color:#078779; }
+
+    .donut-wrap { position:relative; width:180px; height:180px; margin:auto; }
+    .donut-wrap svg { transform:rotate(-90deg); width:100%; height:100%; }
+    .donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+
+    circle { transition: stroke-dasharray 0.8s ease-in-out, stroke-dashoffset 0.8s ease-in-out; }
+
+    .pill { display:inline-flex; border-radius:999px; padding:.28rem .65rem; font-size:.75rem; font-weight:700; text-transform:capitalize; }
+    .pill-vacia { background:#ddf6ef; color:#08765e; }
+    .pill-cargada { background:#fff1d7; color:#975e06; }
+    .pill-mantenimiento { background:#fce6e4; color:#a33d36; }
+    .pill-storage { background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; }
+
+    .text-storage { color:#6b21a8 !important; font-weight:800; }
+
+    tr.row-original { background-color: #f0fdf4 !important; }
+    tr.row-copia { background-color: #fef2f2 !important; }
+
+    .table-wrap { overflow-x:auto; background:white; border:1px solid var(--line); border-radius:16px; margin-top:1rem; }
+    table { width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem; }
+    th, td { padding:12px 16px; border-bottom:1px solid var(--line); transition:background 0.2s; }
+    tr:hover td { background:rgba(0,0,0,0.02); }
+    th { background:#f5f8fa; color:#627488; font-size:0.72rem; text-transform:uppercase; font-weight:800; cursor:pointer; user-select:none; }
+    th:hover { background:#e2e8f0; color:#1e293b; }
+
+    .field { width:100%; border:1px solid #ccd9e2; border-radius:8px; padding:10px 12px; margin-top:4px; transition:border 0.2s, box-shadow 0.2s; }
+    .field:focus { outline:none; border-color:#005ac7; box-shadow:0 0 0 3px rgba(0,90,199,0.15); }
+
+    .modal-backdrop { 
+      position:fixed; inset:0; background:rgba(9,25,42,0.65); backdrop-filter:blur(3px);
+      display:flex; align-items:center; justify-content:center; padding:1rem; z-index:999; 
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from{ opacity:0; } to{ opacity:1; } }
+
+    .modal-content {
+      animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from{ transform:translateY(30px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+    
+    .status-online { display:inline-flex; align-items:center; gap:0.4rem; font-size:0.75rem; font-weight:700; color:#08765e; background:#ddf6ef; padding:0.2rem 0.6rem; border-radius:99px; }
+    .dot { width:8px; height:8px; background:#08765e; border-radius:50%; display:inline-block; animation:pulse 1.8s infinite; }
+    @keyframes pulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.3; transform:scale(1.2); } }
+
+    .vacias-card { background:#ddf6ef; border:1px solid #b2ebd9; border-radius:12px; padding:1rem 1.25rem; }
+    .vacias-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid #b2ebd9; }
+    .vacias-pills { display:flex; flex-wrap:wrap; gap:0.5rem; }
+    .vacia-loc-pill { background:white; border:1px solid #93dcc6; border-radius:8px; padding:0.3rem 0.6rem; font-size:0.8rem; font-weight:700; color:#08765e; }
+    
+    .check-label { display:inline-flex; align-items:center; gap:0.4rem; font-size:0.82rem; font-weight:700; cursor:pointer; color:#172b40; user-select:none; }
+    .check-label input { width:16px; height:16px; accent-color:var(--teal); cursor:pointer; }
+
+    .maint-summary-card {
+      background:#fff5f5; border:1px solid #fecaca; border-left:6px solid #e19a68;
+      border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
+    }
+
+    .movs-summary-card {
+      background:#eff6ff; border:1px solid #bfdbfe; border-left:6px solid #3b82f6;
+      border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
+    }
+
+    .maint-stat-pill {
+      background:white; border:1px solid #fee2e2; border-radius:10px; padding:0.5rem 0.8rem;
+      font-size:0.8rem; font-weight:700; color:#991b1b; display:inline-flex; align-items:center; gap:0.4rem;
+    }
+
+    .counter-badge {
+      background:#eef6ff; border:1px solid #c7d2fe; border-radius:12px; padding:0.75rem 1.25rem;
+      display:inline-flex; align-items:center; gap:0.75rem; font-weight:700; color:#1e40af; margin-bottom:1rem;
+    }
+
+    .toast-container {
+      position:fixed; top:20px; right:20px; z-index:2000; display:flex; flex-direction:column; gap:0.5rem;
+    }
+    .toast {
+      background:white; border-left:5px solid var(--teal); border-radius:10px; padding:0.85rem 1.2rem;
+      box-shadow:0 10px 25px rgba(0,0,0,0.15); font-size:0.85rem; font-weight:700; color:var(--ink);
+      display:flex; align-items:center; gap:0.75rem; animation: toastIn 0.4s ease, toastOut 0.4s ease 2.6s forwards;
+    }
+    @keyframes toastIn { from{ transform:translateX(100%); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+    @keyframes toastOut { from{ transform:translateX(0); opacity:1; } to{ transform:translateX(100%); opacity:0; } }
+
+    .row-finished { animation: flashSuccess 0.8s ease; }
+    @keyframes flashSuccess { 0%{ background:#dcfce7; } 100%{ background:transparent; } }
+    
+    .user-tag-subtle {
+      font-size: 0.72rem; color: #94a3b8; font-weight: 600; background: #f1f5f9;
+      padding: 0.15rem 0.4rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.2rem;
+    }
+    
+    .storage-alert-box {
+      background:#faf5ff; border:1px dashed #c084fc; border-radius:10px; padding:0.75rem; margin-top:0.5rem;
+      display:none; color:#6b21a8; font-size:0.82rem; font-weight:700;
+    }
+
+    /* ESTILOS TÁCTILES MÓVILES PARA EL RECORRIDO DIARIO */
+    .touch-btn-group {
+      display:flex; gap:0.35rem; flex-wrap:wrap;
+    }
+    .touch-btn {
+      padding:0.4rem 0.6rem; border-radius:10px; border:1.5px solid #cbd5e1;
+      background:#f8fafc; color:#475569; font-weight:700; font-size:0.78rem;
+      cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.25rem;
+      user-select:none; -webkit-tap-highlight-color: transparent;
+    }
+    .touch-btn:active { transform:scale(0.95); }
+
+    .touch-btn.sel-vacia {
+      background:#10b981 !important; color:white !important; border-color:#059669 !important;
+      box-shadow:0 3px 10px rgba(16,185,129,0.3);
+    }
+    .touch-btn.sel-cargada {
+      background:#f59e0b !important; color:white !important; border-color:#d97706 !important;
+      box-shadow:0 3px 10px rgba(245,158,11,0.3);
+    }
+    .touch-btn.sel-danos {
+      background:#ef4444 !important; color:white !important; border-color:#dc2626 !important;
+      box-shadow:0 3px 10px rgba(239,68,68,0.3);
+    }
+    .touch-btn.sel-noesta {
+      background:#64748b !important; color:white !important; border-color:#475569 !important;
+      box-shadow:0 3px 10px rgba(100,116,139,0.3);
+    }
+
+    .comment-preview-tag {
+      display:inline-block; background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;
+      font-size:0.75rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:6px; margin-top:0.3rem;
+      max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+
+    /* ESTILOS DE PLANILLA DE TARJETAS QR PARA IMPRESIÓN */
+    .qr-grid-container {
+      display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:1rem; padding:1rem;
+    }
+    .qr-card {
+      background:white; border:2px solid #005ac7; border-radius:12px; padding:1rem;
+      text-align:center; display:flex; flex-direction:column; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.05);
+      page-break-inside: avoid;
+    }
+    .qr-card h4 { font-size:1.3rem; font-weight:800; color:#005ac7; margin-bottom:0.2rem; }
+    .qr-card p { font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.5rem; }
+    .qr-card .qr-img-box { margin:0.5rem 0; padding:0.5rem; background:#fff; border:1px solid #e2e8f0; border-radius:8px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #qr-modal, #qr-modal * { visibility: visible; }
+      #qr-modal { position: absolute; left: 0; top: 0; width: 100%; background: white; padding:0; }
+      .no-print { display: none !important; }
+      .qr-grid-container { grid-template-columns: repeat(3, 1fr); gap:0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PANTALLA DE ACCESO RESTRINGIDO -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-icon-box">📦</div>
+      <h2 style="font-size:1.3rem; font-weight:800; color:var(--ink); margin-bottom:0.25rem;">Control Logístico de Cajas</h2>
+      <p style="font-size:0.82rem; color:#627488; margin-bottom:1.5rem;">Ingresa tus credenciales autorizadas</p>
+      
+      <form id="login-form">
+        <div style="text-align:left; margin-bottom:1rem;">
+          <label style="font-weight:700; font-size:0.8rem; color:#475569;">Usuario Autorizado</label>
+          <select id="user-select" class="field" required>
+            <option value="">-- Seleccionar usuario --</option>
+            <option value="Erick M">Erick M</option>
+            <option value="Alejandro G">Alejandro G</option>
+            <option value="Ruben V">Ruben V</option>
+            <option value="Abril V">Abril V</option>
+            <option value="Felipe H (sistemas)">Felipe H (sistemas)</option>
+            <option value="Veronica P">Veronica P</option>
+            <option value="Jgrimaldo">Jgrimaldo</option>
+          </select>
+        </div>
+        
+        <div style="text-align:left; margin-bottom:1.5rem;">
+          <label style="font-weight:700; font-size:0.8rem; color:#475569;">Contraseña</label>
+          <input type="password" id="password-input" class="field" required placeholder="••••••••">
+          <div id="login-error" style="display:none; color:#dc2626; font-size:0.78rem; font-weight:700; margin-top:0.4rem; text-align:center;">Contraseña incorrecta</div>
+        </div>
+
+        <button type="submit" class="primary" style="width:100%; padding:0.85rem; font-size:0.95rem; background:#005ac7;">Ingresar al Sistema ➔</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- OVERLAY DE BIENVENIDA -->
+  <div id="welcome-overlay" class="welcome-overlay">
+    <div class="welcome-card">
+      <div style="font-size:4rem; margin-bottom:1rem;">📦</div>
+      <h1 style="font-size:2.2rem; font-weight:800; margin-bottom:0.5rem;" id="welcome-title">¡Bienvenido!</h1>
+      <p style="font-size:1.1rem; opacity:0.9; font-weight:600;" id="welcome-subtitle">Iniciando centro de operaciones...</p>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR DE TOASTS -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div>
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem;">
+          <div class="brand-icon-sidebar">📦</div>
+          <div>
+            <div style="color:white; font-weight:800; font-size:0.9rem;">CONTROL DE CAJAS</div>
+            <div style="color:#acc0d1; font-size:0.75rem;">MEDLINE LOGISTICS</div>
+          </div>
+        </div>
+        <div style="margin-bottom:1.5rem;">
+          <span class="status-online"><span class="dot"></span> Tiempo Real Activo</span>
+        </div>
+        <nav id="navigation">
+          <button type="button" class="nav-button active" data-view="dashboard"><span>📊</span> Dashboard Resumen</button>
+          <button type="button" class="nav-button" data-view="recorrido"><span>📱</span> Recorrido diario</button>
+          <button type="button" class="nav-button" data-view="MSM"><span>🏢</span> Módulo MSM</button>
+          <button type="button" class="nav-button" data-view="NLDC"><span>🏭</span> Módulo NLDC</button>
+          <button type="button" class="nav-button" data-view="mantenimiento"><span>🛠️</span> Mantenimiento</button>
+          <button type="button" class="nav-button" data-view="movimientos"><span>🔄</span> Movimientos Diarios</button>
+          <button type="button" class="nav-button" data-view="placas"><span>📋</span> Reporte de placas general</button>
+        </nav>
+      </div>
+
+      <!-- PERFIL DE USUARIO EN SIDEBAR -->
+      <div style="background:#001740; border-radius:12px; padding:0.85rem; margin-top:1.5rem; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <div style="background:#005ac7; color:white; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem;" id="user-avatar">U</div>
+          <div>
+            <div style="color:white; font-weight:700; font-size:0.8rem;" id="user-display-name">Usuario</div>
+            <div style="color:#94a3b8; font-size:0.7rem;">Usuario de Sesión</div>
+          </div>
+        </div>
+        <button type="button" id="logout-btn" title="Cerrar sesión" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:1rem; padding:0.2rem;">🚪</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header>
+        <div>
+          <div style="font-size:0.75rem; font-weight:800; color:#005ac7; text-transform:uppercase;">Medline Operations</div>
+          <h1 id="view-title" style="font-size:1.75rem; font-weight:800;">Dashboard Resumen</h1>
+        </div>
+        <button id="open-form" class="primary">+ Registrar caja</button>
+      </header>
+
+      <main>
+        <div id="notice" style="display:none; background:#ddf6ef; color:#08765e; padding:1rem; border-radius:12px; font-weight:700; margin-bottom:1rem;"></div>
+
+        <!-- Dashboard View -->
+        <section id="dashboard-view">
+          <div id="mantenimiento-summary-card" class="maint-summary-card"></div>
+          <div id="movimientos-summary-card" class="movs-summary-card"></div>
+
+          <div class="grid">
+            <!-- MSM Card -->
+            <div class="surface module-card msm">
+              <div style="font-weight:800; font-size:1.1rem; margin-bottom:1rem; color:var(--ink);">Módulo MSM</div>
+              <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+                <div class="donut-wrap">
+                  <svg viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="46" fill="none" stroke="#e9eff2" stroke-width="13"></circle>
+                    <g id="msm-segments"></g>
+                  </svg>
+                  <div class="donut-center">
+                    <strong id="msm-total-center" style="font-size:2rem; font-weight:800;">0</strong>
+                    <span style="font-size:0.75rem; color:#65778b;">cajas MSM</span>
+                  </div>
+                </div>
+                <div id="msm-legend" style="flex:1; display:flex; flex-direction:column; gap:0.5rem;"></div>
+              </div>
+              <div style="font-weight:800; font-size:0.85rem; color:#65778b; margin-bottom:0.5rem;">Desglose de Cajas Vacías por Ubicación</div>
+              <div id="msm-vacias-container"></div>
+            </div>
+
+            <!-- NLDC Card -->
+            <div class="surface module-card nldc">
+              <div style="font-weight:800; font-size:1.1rem; margin-bottom:1rem; color:var(--ink);">Módulo NLDC</div>
+              <div style="display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+                <div class="donut-wrap">
+                  <svg viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="46" fill="none" stroke="#e9eff2" stroke-width="13"></circle>
+                    <g id="nldc-segments"></g>
+                  </svg>
+                  <div class="donut-center">
+                    <strong id="nldc-total-center" style="font-size:2rem; font-weight:800;">0</strong>
+                    <span style="font-size:0.75rem; color:#65778b;">cajas NLDC</span>
+                  </div>
+                </div>
+                <div id="nldc-legend" style="flex:1; display:flex; flex-direction:column; gap:0.5rem;"></div>
+              </div>
+              <div style="font-weight:800; font-size:0.85rem; color:#65778b; margin-bottom:0.5rem;">Desglose de Cajas Vacías por Ubicación</div>
+              <div id="nldc-vacias-container"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Table View -->
+        <section id="table-view" style="display:none;">
+          <div id="module-counter" class="counter-badge" style="display:none;">
+            <span style="font-size:1.2rem;">📦</span>
+            <div>
+              <span style="font-size:0.8rem; text-transform:uppercase; color:#3b82f6; display:block;" id="module-counter-label">Registros en Módulo</span>
+              <strong id="module-count-num" style="font-size:1.4rem; color:#1e3a8a;">0</strong>
+            </div>
+          </div>
+
+          <div id="movimientos-counter" class="counter-badge" style="display:none;">
+            <span style="font-size:1.2rem;">🔄</span>
+            <div>
+              <span style="font-size:0.8rem; text-transform:uppercase; color:#3b82f6; display:block;">Movimientos Realizados</span>
+              <strong id="movimientos-count-num" style="font-size:1.4rem; color:#1e3a8a;">0</strong>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+            <input id="search" class="field" style="max-width:300px;" placeholder="Buscar caja, placas, estado...">
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <button id="scan-qr-button" class="btn-qr" style="display:none;">📷 Escanear QR</button>
+              <button id="print-qr-button" class="btn-qr" style="display:none; background:#4f46e5;">🖨️ Generar Tarjetas QR</button>
+              <button id="reset-recorrido-button" class="btn-reset" style="display:none;">🔄 Reiniciar Estatus</button>
+              <button id="whatsapp-button" class="btn-whatsapp" style="display:none;">📲 Compartir por WhatsApp</button>
+              <button id="export-button" class="primary" style="padding:0.5rem 1rem; font-size:0.85rem;">📥 Exportar Excel</button>
+              <button id="clear-button" class="danger">Vaciar Tabla</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="table-head"></thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Form Principal -->
+  <div id="form-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:500px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2 id="modal-heading" style="font-size:1.25rem; font-weight:800;">Registrar caja</h2>
+        <button id="close-modal" class="secondary" type="button">✕</button>
+      </div>
+      <form id="entry-form">
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.85rem;">Número de caja</label>
+          <input id="box-number" class="field" required placeholder="Ej. 520795">
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.85rem;">Módulo</label>
+          <select id="module" class="field"><option value="MSM">MSM</option><option value="NLDC">NLDC</option></select>
+          <small id="module-auto-hint" style="display:none; color:#0e9f94; font-weight:700; font-size:0.75rem; margin-top:2px;">✨ Módulo detectado automáticamente según inventario</small>
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.85rem;">Ubicación</label>
+          <select id="location" class="field"><option value="Venus">Venus</option><option value="Milton">Milton</option><option value="ISC">ISC</option><option value="McKinney">McKinney</option><option value="Otro">Otro</option></select>
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.85rem;">Comentarios</label>
+          <input id="comments" class="field" maxlength="160" placeholder="Ej. Cambio de rampa, observaciones...">
+        </div>
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.85rem;">Estatus</label>
+          <select id="status" class="field"><option value="vacia">vacia</option><option value="cargada">cargada</option><option value="mantenimiento">mantenimiento</option><option value="storage">storage</option></select>
+          <div id="storage-alert-box" class="storage-alert-box">
+            <span>🟣 <strong>Atención:</strong> La caja se encuentra o cambiará al estatus de <u>Storage</u>.</span>
+          </div>
+        </div>
+        <div id="movement-only" style="display:none;">
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-weight:700; font-size:0.85rem;">Tipo de Movimiento</label>
+            <select id="movement-type" class="field"><option value="PATIO-RAMPA">PATIO-RAMPA</option><option value="RAMPA-PATIO">RAMPA-PATIO</option><option value="PDM-VENUS">PDM-VENUS</option><option value="VENUS-PDM">VENUS-PDM</option></select>
+          </div>
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-weight:700; font-size:0.85rem;">Operador (Maniobra)</label>
+            <input id="movement-operator" class="field" placeholder="Nombre del chofer / operador de la caja">
+          </div>
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-weight:700; font-size:0.85rem;">Solicitud de</label>
+            <input id="movement-requested-by" class="field" placeholder="Persona o área que realiza la solicitud">
+          </div>
+          <div style="margin-bottom:0.75rem;">
+            <label style="font-weight:700; font-size:0.85rem;">Fecha y Hora del Movimiento</label>
+            <input id="movement-datetime" class="field" placeholder="DD/MM/AAAA, HH:mm">
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.5rem;">
+          <button id="cancel-form" type="button" class="secondary">Cancelar</button>
+          <button type="submit" class="primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE LECTOR DE CÁMARA QR -->
+  <div id="camera-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:450px; text-align:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="font-size:1.1rem; font-weight:800; color:#4f46e5;">📷 Escanear Código QR de Caja</h3>
+        <button id="close-camera-modal" class="secondary" type="button">✕</button>
+      </div>
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom:1rem;">Apunta la cámara del celular al código QR de la caja</p>
+      
+      <div id="qr-reader-box" style="width:100%; border-radius:12px; overflow:hidden; background:#000;"></div>
+
+      <div style="margin-top:1rem;">
+        <button id="stop-camera-btn" type="button" class="secondary" style="width:100%;">Cerrar Cámara</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE VISTA / IMPRESIÓN DE PLANILLA DE TARJETAS QR -->
+  <div id="qr-modal" class="modal-backdrop" style="display:none; align-items:flex-start; overflow-y:auto; padding:2rem 1rem;">
+    <div class="surface modal-content" style="width:100%; max-width:1100px; background:#f8fafc;">
+      <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:2px solid #cbd5e1;">
+        <div>
+          <h2 style="font-size:1.4rem; font-weight:800; color:#005ac7;">🖨️ Planilla de Tarjetas QR - Medline</h2>
+          <p style="font-size:0.85rem; color:#64748b;">Lista de 80 fichas para pegar en rampa, carpetas o cajas fisicas</p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" class="primary" onclick="window.print()" style="background:#4f46e5;">🖨️ Imprimir / Guardar PDF</button>
+          <button id="close-qr-modal" class="secondary" type="button">✕ Cerrar</button>
+        </div>
+      </div>
+
+      <div id="qr-grid" class="qr-grid-container"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE COMENTARIOS/DAÑOS PARA RECORRIDO DIARIO -->
+  <div id="damage-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:420px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="font-size:1.1rem; font-weight:800; color:#dc2626;">🔴 Registrar Daño / Comentario</h3>
+        <button id="close-damage-modal" class="secondary" type="button">✕</button>
+      </div>
+      <p style="font-size:0.85rem; color:#475569; margin-bottom:0.75rem;">
+        Escribe las observaciones de la caja <strong id="damage-box-label" style="color:#005ac7;">—</strong>:
+      </p>
+      <textarea id="damage-text-input" class="field" rows="3" placeholder="Ej. Golpes en marco posterior, llanta desgastada, fuga..." style="resize:vertical;"></textarea>
+      
+      <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+        <button id="cancel-damage-btn" type="button" class="secondary">Cancelar</button>
+        <button id="save-damage-btn" type="button" class="primary" style="background:#dc2626;">Guardar Observación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK modular -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQykxeMYM9zLkG_zKHMzbB5oZoofxhvfg",
+      authDomain: "logistica-msm.firebaseapp.com",
+      projectId: "logistica-msm",
+      storageBucket: "logistica-msm.firebasestorage.app",
+      messagingSenderId: "55217121587",
+      appId: "1:55217121587:web:ead0f6ece5a47d2be8b646"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const AUTHORIZED_USERS = {
+      "Erick M": "reportevenus",
+      "Alejandro G": "medline2026",
+      "Ruben V": "papa",
+      "Abril V": "medline2026",
+      "Felipe H (sistemas)": "Sistemas2026",
+      "Veronica P": "NLDCMSM26",
+      "Jgrimaldo": "Aitana13"
+    };
+
+    const catalogNLDC = [
+      '529953','536393','538338','538351','538612','538638','539124','539199','539705','547006',
+      '523003','523962','524194','529581','529940','538206','539568','546991','547002','561003',
+      '536536','537981','537983','538144','538180','538614','538823','539581','539867','563904',
+      '563913','563949','564066','564081','564085','564249','564263','564272','564630','564640'
+    ];
+
+    const catalogMSM = [
+      '530020','536507','536544','546962','546985','520795','536640','537959','538189','538386',
+      '546973','547033','560954','564036','536521','536633','537969','530010','530018','539051',
+      '551168','536649','537986','564092','564240','546995','564173','564123','539222','564105',
+      '563872','564070','564028','564237','538618','538641','564650','564033','564273','563915'
+    ];
+
+    const rawPlacasData = [
+      { caja: '520795', placas: '6380KI', estado: 'OK', mfgYear: '2015', make: 'Vanguard' },
+      { caja: '523003', placas: '25523AB', estado: 'WA', mfgYear: '2012', make: 'Wabash' },
+      { caja: '523962', placas: '25605AB', estado: 'WA', mfgYear: '2013', make: 'Wabash' },
+      { caja: '524194', placas: '47509AB', estado: 'WA', mfgYear: '2014', make: 'Wabash' },
+      { caja: '529581', placas: '28132AD', estado: 'WA', mfgYear: '2013', make: 'Wabash' },
+      { caja: '529940', placas: '29599AD', estado: 'WA', mfgYear: '2013', make: 'Wabash' },
+      { caja: '529953', placas: '29607AD', estado: 'WA', mfgYear: '2013', make: 'Wabash' },
+      { caja: '530010', placas: '4NL1001', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '530018', placas: '4NL1016', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '530020', placas: '4NL1017', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '536393', placas: '4MB9100', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '536507', placas: '4MZ8702', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '536521', placas: '4MZ8727', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '536536', placas: '4MZ8724', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '536544', placas: '4MZ8739', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '536633', placas: '18085AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '536640', placas: '18092AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '536649', placas: '19001AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '537959', placas: '18026AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '537969', placas: '18036AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '537981', placas: '18048AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '537983', placas: '18050AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '537986', placas: '18053AH', estado: 'WA', mfgYear: '2015', make: 'Utility' },
+      { caja: '538144', placas: '4XK7881', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '538180', placas: '4ND3466', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '538189', placas: '4ND3460', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '538206', placas: '4ND3430', estado: 'CA', mfgYear: '2015', make: 'Hyundai' },
+      { caja: '538338', placas: '4MH2678', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538351', placas: '4MH2680', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538386', placas: '4MH2812', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538612', placas: '4MK5533', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538614', placas: '4MK5535', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538618', placas: '4MK5540', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538638', placas: '4MK5507', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538641', placas: '4MK5510', estado: 'CA', mfgYear: '2013', make: 'Hyundai' },
+      { caja: '538823', placas: '4MM5007', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539051', placas: '4MM5125', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539124', placas: '4MP5213', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539199', placas: '4WD8659', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539222', placas: '4WP3642', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539568', placas: '4MV3553', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539581', placas: '4MV3399', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '539705', placas: '3580LI', estado: 'OK', mfgYear: '2015', make: 'Utility' },
+      { caja: '539867', placas: '4MW4065', estado: 'CA', mfgYear: '2014', make: 'Hyundai' },
+      { caja: '546962', placas: '9026JK', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '546973', placas: 'BU8212', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '546985', placas: '9049JK', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '546991', placas: '3968JS', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '546995', placas: '3972JS', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '547002', placas: '3979JS', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '547006', placas: '3983JS', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '547033', placas: 'CS4479', estado: 'OK', mfgYear: '2012', make: 'Hyundai' },
+      { caja: '551168', placas: '63895AD', estado: 'WA', mfgYear: '2012', make: 'Great Dane' },
+      { caja: '560954', placas: '4XD5946', estado: 'CA', mfgYear: '2013', make: 'Road Systems' },
+      { caja: '561003', placas: '4XA7331', estado: 'CA', mfgYear: '2013', make: 'Road Systems' },
+      { caja: '563872', placas: '4XU1412', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '563904', placas: '4XN1615', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '563913', placas: '4XN1616', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '563915', placas: '4XU1626', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '563949', placas: '4XN1641', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564028', placas: '4XU1415', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564033', placas: '4XU1629', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564036', placas: '4XN1618', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564066', placas: '4xn1619', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564070', placas: '4XN1620', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564081', placas: '4XN1621', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564085', placas: '4XN1642', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564092', placas: '4XN1643', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564105', placas: '4XN1644', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564123', placas: '4XN1645', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564173', placas: '4XN1648', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564237', placas: '4XU1421', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564240', placas: '4XN1650', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564249', placas: '4XN1651', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564263', placas: '4XN1653', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564272', placas: '4XN1654', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564273', placas: '4XU1634', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564630', placas: '4XN1622', estado: 'CA', mfgYear: '2015', make: 'Conway' },
+      { caja: '564640', placas: '4XN1623', estado: 'CA', mfgYear: '2015', make: 'Road Systems' },
+      { caja: '564650', placas: '4XU1423', estado: 'CA', mfgYear: '2015', make: 'Road Systems' }
+    ];
+
+    const placasMap = {};
+    rawPlacasData.forEach(item => {
+      placasMap[item.caja] = `${item.placas} ${item.estado}`;
+    });
+
+    const placasReportData = rawPlacasData.map(item => {
+      const mod = catalogMSM.includes(item.caja) ? 'MSM' : catalogNLDC.includes(item.caja) ? 'NLDC' : '—';
+      return { ...item, modulo: mod };
+    });
+
+    let recorridoDataMap = {};
+    let html5QrCodeScanner = null;
+
+    let boxes = [];
+    let movements = [];
+    let view = 'dashboard';
+    let editingDocId = null;
+    let currentUser = null;
+    let activeDamageCaja = null;
+
+    let sortColumn = null;
+    let sortAsc = true;
+
+    const locationColors = {
+      'Venus': '#078779',
+      'Milton': '#42658d',
+      'ISC': '#e19a68',
+      'McKinney': '#8f7ac8',
+      'Otro': '#81a9d1'
+    };
+
+    function detectModuleByBoxNumber(boxNum) {
+      if (!boxNum) return null;
+      const cleanNum = boxNum.trim().toUpperCase();
+      const foundInBoxes = boxes.find(b => b.number === cleanNum);
+      if (foundInBoxes && foundInBoxes.module) return foundInBoxes.module;
+      if (catalogMSM.includes(cleanNum)) return 'MSM';
+      if (catalogNLDC.includes(cleanNum)) return 'NLDC';
+      return null;
+    }
+
+    const savedUser = localStorage.getItem('medline_user');
+    if (savedUser) {
+      currentUser = savedUser;
+      updateUserUI();
+      document.getElementById('login-screen').classList.add('hidden');
+    }
+
+    document.getElementById('login-form').onsubmit = function(e) {
+      e.preventDefault();
+      const selectedUser = document.getElementById('user-select').value;
+      const pwd = document.getElementById('password-input').value.trim();
+      const errEl = document.getElementById('login-error');
+
+      if (selectedUser && AUTHORIZED_USERS[selectedUser]) {
+        if (pwd === AUTHORIZED_USERS[selectedUser]) {
+          errEl.style.display = 'none';
+          currentUser = selectedUser;
+          localStorage.setItem('medline_user', currentUser);
+          updateUserUI();
+
+          document.getElementById('login-screen').classList.add('hidden');
+
+          const welcomeOverlay = document.getElementById('welcome-overlay');
+          document.getElementById('welcome-title').textContent = `¡Bienvenido, ${currentUser}!`;
+          welcomeOverlay.classList.add('active');
+
+          setTimeout(() => {
+            welcomeOverlay.classList.remove('active');
+            showToast(`Sesión iniciada como ${currentUser}`);
+          }, 2200);
+
+        } else {
+          errEl.textContent = 'Contraseña incorrecta';
+          errEl.style.display = 'block';
+        }
+      }
+    };
+
+    document.getElementById('logout-btn').onclick = function() {
+      localStorage.removeItem('medline_user');
+      currentUser = null;
+      document.getElementById('password-input').value = '';
+      document.getElementById('login-screen').classList.remove('hidden');
+    };
+
+    function updateUserUI() {
+      if (currentUser) {
+        document.getElementById('user-display-name').textContent = currentUser;
+        document.getElementById('user-avatar').textContent = currentUser.charAt(0).toUpperCase();
+      }
+    }
+
+    function showToast(msg) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>✨</span><span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // FIREBASE LISTENERS EN TIEMPO REAL
+    onSnapshot(collection(db, "boxes"), (snapshot) => {
+      if (snapshot.empty) {
+        initDatabase();
+        return;
+      }
+      boxes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      render();
+    });
+
+    onSnapshot(collection(db, "movements"), (snapshot) => {
+      movements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      render();
+    });
+
+    onSnapshot(collection(db, "daily_tours"), (snapshot) => {
+      recorridoDataMap = {};
+      snapshot.docs.forEach(doc => {
+        recorridoDataMap[doc.id] = doc.data();
+      });
+      if (view === 'recorrido') {
+        renderTable();
+      }
+    });
+
+    async function initDatabase() {
+      const batch = writeBatch(db);
+      catalogNLDC.forEach((num) => {
+        const id = `NLDC_${num}`;
+        batch.set(doc(db, "boxes", id), { number: num, module: 'NLDC', location: 'Venus', comments: '', status: 'vacia' });
+      });
+      catalogMSM.forEach((num) => {
+        const id = `MSM_${num}`;
+        batch.set(doc(db, "boxes", id), { number: num, module: 'MSM', location: 'Venus', comments: '', status: 'vacia' });
+      });
+      await batch.commit();
+    }
+
+    async function updateGlobalStatusInFirebase(num, mod, newSt) {
+      const batch = writeBatch(db);
+      const nowStr = new Date().toLocaleString('es-MX');
+
+      boxes.forEach(b => {
+        if (b.number === num && (!mod || b.module === mod)) {
+          const updateObj = { status: newSt };
+          if (newSt === 'mantenimiento' && !b.mantenimientoDate) {
+            updateObj.mantenimientoDate = nowStr;
+            updateObj.reportadoReparaciones = false;
+          } else if (newSt !== 'mantenimiento') {
+            updateObj.mantenimientoDate = null;
+            updateObj.reportadoReparaciones = false;
+          }
+          batch.update(doc(db, "boxes", b.id), updateObj);
+        }
+      });
+
+      await batch.commit();
+    }
+
+    async function updateRecorridoInFirebase(cajaNum, estatusVal, comentariosVal) {
+      const docId = `REC_${cajaNum}`;
+      await setDoc(doc(db, "daily_tours", docId), {
+        caja: cajaNum,
+        estatusRecorrido: estatusVal,
+        comentarios: comentariosVal || '',
+        updatedBy: currentUser || 'Sistema',
+        updatedAt: new Date().toLocaleString('es-MX')
+      }, { merge: true });
+    }
+
+    function getInverseMovementType(currentType) {
+      switch (currentType) {
+        case 'PATIO-RAMPA': return 'RAMPA-PATIO';
+        case 'RAMPA-PATIO': return 'PATIO-RAMPA';
+        case 'PDM-VENUS': return 'VENUS-PDM';
+        case 'VENUS-PDM': return 'PDM-VENUS';
+        default: return 'RAMPA-PATIO';
+      }
+    }
+
+    function getMergedRecorridoList() {
+      return rawPlacasData.map(item => {
+        const mod = catalogMSM.includes(item.caja) ? 'MSM' : catalogNLDC.includes(item.caja) ? 'NLDC' : '—';
+        const firebaseDoc = recorridoDataMap[`REC_${item.caja}`];
+        return {
+          id: `REC_${item.caja}`,
+          caja: item.caja,
+          placas: item.placas,
+          estadoPlaca: item.estado,
+          modulo: mod,
+          estatusRecorrido: firebaseDoc ? firebaseDoc.estatusRecorrido : 'vacia',
+          comentarios: firebaseDoc ? firebaseDoc.comentarios : ''
+        };
+      });
+    }
+
+    function render() {
+      document.querySelectorAll('#navigation button').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-view') === view);
+      });
+
+      document.getElementById('view-title').textContent = 
+        view === 'dashboard' ? 'Dashboard Resumen' : 
+        view === 'recorrido' ? 'Recorrido Diario (Móvil)' :
+        view === 'movimientos' ? 'Movimientos Diarios' : 
+        view === 'mantenimiento' ? 'Módulo de Mantenimiento' : 
+        view === 'placas' ? 'Reporte de Placas General' : 'Módulo ' + view;
+
+      if (view === 'dashboard') {
+        document.getElementById('dashboard-view').style.display = 'block';
+        document.getElementById('table-view').style.display = 'none';
+        renderMantenimientoSummary();
+        renderMovimientosSummary();
+        renderModule('MSM');
+        renderModule('NLDC');
+      } else {
+        document.getElementById('dashboard-view').style.display = 'none';
+        document.getElementById('table-view').style.display = 'block';
+        renderTable();
+      }
+    }
+
+    function renderMantenimientoSummary() {
+      const maintBoxes = boxes.filter(b => b.status === 'mantenimiento');
+      const totalMaint = maintBoxes.length;
+      const msmMaint = maintBoxes.filter(b => b.module === 'MSM').length;
+      const nldcMaint = maintBoxes.filter(b => b.module === 'NLDC').length;
+      const reportadas = maintBoxes.filter(b => b.reportadoReparaciones).length;
+      const pendientes = totalMaint - reportadas;
+
+      const card = document.getElementById('mantenimiento-summary-card');
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="background:#fee2e2; border-radius:12px; padding:0.75rem; font-size:1.5rem;">🛠️</div>
+          <div>
+            <div style="font-size:0.8rem; font-weight:800; color:#991b1b; text-transform:uppercase;">Estatus Mantenimiento Global</div>
+            <div style="font-size:1.1rem; font-weight:800; color:#172b40; margin-top:0.1rem;">
+              ${totalMaint} ${totalMaint === 1 ? 'caja requiere' : 'cajas requieren'} reparación
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <div class="maint-stat-pill">🏢 MSM: <strong>${msmMaint}</strong></div>
+          <div class="maint-stat-pill">🏭 NLDC: <strong>${nldcMaint}</strong></div>
+          <div class="maint-stat-pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">✅ Reportadas: <strong>${reportadas}</strong></div>
+          <div class="maint-stat-pill" style="background:#fef2f2; border-color:#fecaca; color:#991b1b;">⏳ Pendientes: <strong>${pendientes}</strong></div>
+        </div>
+      `;
+    }
+
+    function renderMovimientosSummary() {
+      const totalMovs = movements.length;
+      const msmMovs = movements.filter(m => m.module === 'MSM').length;
+      const nldcMovs = movements.filter(m => m.module === 'NLDC').length;
+
+      const card = document.getElementById('movimientos-summary-card');
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="background:#dbeafe; border-radius:12px; padding:0.75rem; font-size:1.5rem;">🔄</div>
+          <div>
+            <div style="font-size:0.8rem; font-weight:800; color:#1e40af; text-transform:uppercase;">Movimientos Diarios Registrados</div>
+            <div style="font-size:1.1rem; font-weight:800; color:#172b40; margin-top:0.1rem;">
+              ${totalMovs} ${totalMovs === 1 ? 'movimiento realizado' : 'movimientos realizados'}
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <div class="maint-stat-pill" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">🏢 MSM: <strong>${msmMovs}</strong></div>
+          <div class="maint-stat-pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">🏭 NLDC: <strong>${nldcMovs}</strong></div>
+        </div>
+      `;
+    }
+
+    function renderModule(mod) {
+      const prefix = mod.toLowerCase();
+      const list = boxes.filter(b => b.module === mod);
+      const total = list.length;
+      document.getElementById(prefix + '-total-center').textContent = total;
+
+      const locCounts = {};
+      list.forEach(b => {
+        const loc = b.location || 'Venus';
+        locCounts[loc] = (locCounts[loc] || 0) + 1;
+      });
+
+      const group = document.getElementById(prefix + '-segments');
+      group.innerHTML = '';
+      const circumference = 2 * Math.PI * 46;
+      let offset = 0;
+
+      const locationsList = Object.keys(locCounts);
+
+      locationsList.forEach(loc => {
+        const count = locCounts[loc];
+        const color = locationColors[loc] || '#81a9d1';
+        if (count > 0 && total > 0) {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', '60'); circle.setAttribute('cy', '60'); circle.setAttribute('r', '46');
+          circle.setAttribute('fill', 'none'); circle.setAttribute('stroke', color);
+          circle.setAttribute('stroke-width', '13');
+          circle.setAttribute('stroke-dasharray', ((count / total) * circumference) + ' ' + circumference);
+          circle.setAttribute('stroke-dashoffset', -offset);
+          group.appendChild(circle);
+          offset += (count / total) * circumference;
+        }
+      });
+
+      const legend = document.getElementById(prefix + '-legend');
+      legend.innerHTML = '';
+      locationsList.forEach(loc => {
+        const count = locCounts[loc];
+        const pct = total ? Math.round((count / total) * 100) : 0;
+        const color = locationColors[loc] || '#81a9d1';
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; background:#f5f8fa; padding:0.4rem 0.6rem; border-radius:8px;';
+        row.innerHTML = `<span style="width:10px; height:10px; border-radius:50%; background:${color}"></span><span style="flex:1; font-weight:600;">${loc}</span><b>${count} (${pct}%)</b>`;
+        legend.appendChild(row);
+      });
+
+      const vaciasList = list.filter(b => (b.status || '').toLowerCase() === 'vacia');
+      const vaciasTotal = vaciasList.length;
+
+      const vaciasLocCounts = {};
+      vaciasList.forEach(b => {
+        const loc = b.location || 'Venus';
+        vaciasLocCounts[loc] = (vaciasLocCounts[loc] || 0) + 1;
+      });
+
+      let vaciasPillsHTML = '';
+      const vaciasLocKeys = Object.keys(vaciasLocCounts);
+
+      if (vaciasLocKeys.length === 0) {
+        vaciasPillsHTML = `<span style="font-size:0.8rem; font-weight:600; color:#08765e;">No hay cajas vacías registradas.</span>`;
+      } else {
+        vaciasLocKeys.forEach(loc => {
+          vaciasPillsHTML += `<div class="vacia-loc-pill"><span>${loc}:</span> <strong>${vaciasLocCounts[loc]}</strong></div>`;
+        });
+      }
+
+      const vaciasContainer = document.getElementById(prefix + '-vacias-container');
+      vaciasContainer.innerHTML = `
+        <div class="vacias-card">
+          <div class="vacias-header">
+            <div>
+              <div style="font-size:0.8rem; font-weight:800; color:#08765e; text-transform:uppercase;">Estatus Vacía</div>
+              <div style="font-size:0.8rem; font-weight:600; color:#172b40;">Cajas disponibles para uso</div>
+            </div>
+            <div style="text-align:right;">
+              <strong style="font-size:1.5rem; font-weight:800; color:#08765e;">${vaciasTotal}</strong>
+              <span style="font-size:0.8rem; font-weight:700; color:#65778b;">/ ${total} totales</span>
+            </div>
+          </div>
+          <div class="vacias-pills">
+            ${vaciasPillsHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTable() {
+      const isRecorrido = view === 'recorrido';
+      const isMov = view === 'movimientos';
+      const isMaint = view === 'mantenimiento';
+      const isPlacas = view === 'placas';
+      const isModuleView = view === 'MSM' || view === 'NLDC';
+
+      const thead = document.getElementById('table-head');
+      const tbody = document.getElementById('table-body');
+      const search = document.getElementById('search').value.toLowerCase();
+      const counterBadge = document.getElementById('movimientos-counter');
+      const moduleCounterBadge = document.getElementById('module-counter');
+      const clearBtn = document.getElementById('clear-button');
+      const whatsappBtn = document.getElementById('whatsapp-button');
+      const resetRecorridoBtn = document.getElementById('reset-recorrido-button');
+      const scanQrBtn = document.getElementById('scan-qr-button');
+      const printQrBtn = document.getElementById('print-qr-button');
+
+      const getArrow = (colKey) => sortColumn === colKey ? (sortAsc ? ' ▲' : ' ▼') : ' ⇅';
+
+      let columns = [];
+      if (isRecorrido) {
+        columns = [
+          { key: 'caja', label: 'Caja' },
+          { key: 'placas', label: 'Placas' },
+          { key: 'modulo', label: 'Módulo' },
+          { key: 'estatusRecorrido', label: 'Estatus (Toque Fácil)' },
+          { key: 'comentarios', label: 'Comentarios / Daños' }
+        ];
+      } else if (isMov) {
+        columns = [
+          { key: 'number', label: 'Caja' },
+          { key: 'module', label: 'Módulo' },
+          { key: 'type', label: 'Tipo' },
+          { key: 'location', label: 'Ubicación' },
+          { key: 'operator', label: 'Operador' },
+          { key: 'comments', label: 'Comentarios' },
+          { key: 'requestedBy', label: 'Solicitud de' },
+          { key: 'datetime', label: 'Fecha y Hora' },
+          { key: 'status', label: 'Estatus' },
+          { key: null, label: 'Acciones' }
+        ];
+      } else if (isMaint) {
+        columns = [
+          { key: 'number', label: 'Caja' },
+          { key: 'module', label: 'Módulo' },
+          { key: 'location', label: 'Ubicación' },
+          { key: 'comments', label: 'Comentarios' },
+          { key: 'mantenimientoDate', label: 'Fecha de Registro' },
+          { key: 'reportadoReparaciones', label: 'Reportado a Reparaciones' },
+          { key: null, label: 'Acciones' }
+        ];
+      } else if (isPlacas) {
+        columns = [
+          { key: 'caja', label: 'Caja' },
+          { key: 'placas', label: 'Placas' },
+          { key: 'estado', label: 'Estado' },
+          { key: 'mfgYear', label: 'MfgYear' },
+          { key: 'make', label: 'Make' },
+          { key: 'modulo', label: 'Módulo' }
+        ];
+      } else {
+        columns = [
+          { key: 'number', label: 'Caja' },
+          { key: 'status', label: 'Estatus' },
+          { key: 'location', label: 'Ubicación' },
+          { key: 'comments', label: 'Comentarios' },
+          { key: 'placasInfo', label: 'Placas' },
+          { key: null, label: 'Acciones' }
+        ];
+      }
+
+      let thHTML = '<tr>';
+      columns.forEach(col => {
+        if (col.key) {
+          thHTML += `<th data-col="${col.key}">${col.label}<span>${getArrow(col.key)}</span></th>`;
+        } else {
+          thHTML += `<th>${col.label}</th>`;
+        }
+      });
+      thHTML += '</tr>';
+      thead.innerHTML = thHTML;
+
+      // VISIBILIDAD DE BOTONES
+      whatsappBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
+      resetRecorridoBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
+      scanQrBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
+      printQrBtn.style.display = (isRecorrido || isPlacas) ? 'inline-flex' : 'none';
+
+      if (isPlacas || isRecorrido) {
+        clearBtn.style.display = 'none';
+      } else {
+        clearBtn.style.display = 'inline-block';
+      }
+
+      if (isMov) {
+        counterBadge.style.display = 'inline-flex';
+        moduleCounterBadge.style.display = 'none';
+        document.getElementById('movimientos-count-num').textContent = movements.length;
+      } else if (isModuleView) {
+        counterBadge.style.display = 'none';
+        moduleCounterBadge.style.display = 'inline-flex';
+        document.getElementById('module-counter-label').textContent = `Total Registros Módulo ${view}`;
+      } else if (isPlacas || isRecorrido) {
+        counterBadge.style.display = 'none';
+        moduleCounterBadge.style.display = 'inline-flex';
+        document.getElementById('module-counter-label').textContent = isRecorrido ? 'Cajas en Recorrido' : 'Total Registros Placas';
+      } else {
+        counterBadge.style.display = 'none';
+        moduleCounterBadge.style.display = 'none';
+      }
+
+      tbody.innerHTML = '';
+
+      let dataset = [];
+      if (isRecorrido) {
+        dataset = getMergedRecorridoList();
+      } else if (isMov) {
+        dataset = movements;
+      } else if (isMaint) {
+        dataset = boxes.filter(b => b.status === 'mantenimiento');
+      } else if (isPlacas) {
+        dataset = placasReportData;
+      } else {
+        dataset = boxes.filter(b => b.module === view).map(b => ({
+          ...b,
+          placasInfo: placasMap[b.number] || '—'
+        }));
+      }
+
+      // FILTRADO POR BÚSQUEDA
+      let filtered = dataset.filter(x => {
+        if (isRecorrido) {
+          return (x.caja && x.caja.toLowerCase().includes(search)) ||
+                 (x.placas && x.placas.toLowerCase().includes(search)) ||
+                 (x.modulo && x.modulo.toLowerCase().includes(search)) ||
+                 (x.comentarios && x.comentarios.toLowerCase().includes(search));
+        }
+        if (isPlacas) {
+          return (x.caja && x.caja.toLowerCase().includes(search)) ||
+                 (x.placas && x.placas.toLowerCase().includes(search)) ||
+                 (x.estado && x.estado.toLowerCase().includes(search)) ||
+                 (x.mfgYear && x.mfgYear.toLowerCase().includes(search)) ||
+                 (x.make && x.make.toLowerCase().includes(search)) ||
+                 (x.modulo && x.modulo.toLowerCase().includes(search));
+        }
+        return (x.number && x.number.toLowerCase().includes(search)) || 
+               (x.location && x.location.toLowerCase().includes(search)) ||
+               (x.comments && x.comments.toLowerCase().includes(search)) ||
+               (x.module && x.module.toLowerCase().includes(search)) ||
+               (x.operator && x.operator.toLowerCase().includes(search)) ||
+               (x.requestedBy && x.requestedBy.toLowerCase().includes(search)) ||
+               (x.recordedBy && x.recordedBy.toLowerCase().includes(search)) ||
+               (x.datetime && x.datetime.toLowerCase().includes(search)) ||
+               (x.placasInfo && x.placasInfo.toLowerCase().includes(search));
+      });
+
+      if (isModuleView || isPlacas || isRecorrido) {
+        document.getElementById('module-count-num').textContent = filtered.length;
+      }
+
+      if (sortColumn) {
+        filtered.sort((a, b) => {
+          let valA = a[sortColumn] || '';
+          let valB = b[sortColumn] || '';
+          
+          if (typeof valA === 'boolean') valA = valA ? 1 : 0;
+          if (typeof valB === 'boolean') valB = valB ? 1 : 0;
+
+          if (valA < valB) return sortAsc ? -1 : 1;
+          if (valA > valB) return sortAsc ? 1 : -1;
+          return 0;
+        });
+      }
+
+      if (isRecorrido) {
+        filtered.forEach(item => {
+          const tr = document.createElement('tr');
+          const isVacia = item.estatusRecorrido === 'vacia';
+          const isCargada = item.estatusRecorrido === 'cargada';
+          const isDanos = item.estatusRecorrido === 'danos';
+          const isNoEsta = item.estatusRecorrido === 'noesta';
+
+          tr.innerHTML = `
+            <td><strong style="font-size:1rem; color:var(--ink);">${item.caja}</strong></td>
+            <td><span style="font-weight:700; color:#0e9f94;">${item.placas} ${item.estadoPlaca}</span></td>
+            <td><span class="pill ${item.modulo==='MSM'?'pill-cargada':'pill-vacia'}">${item.modulo}</span></td>
+            <td>
+              <div class="touch-btn-group">
+                <button type="button" class="touch-btn touch-vacia ${isVacia ? 'sel-vacia' : ''}" data-caja="${item.caja}">
+                  🟢 Vacía
+                </button>
+                <button type="button" class="touch-btn touch-cargada ${isCargada ? 'sel-cargada' : ''}" data-caja="${item.caja}">
+                  🟡 Cargada
+                </button>
+                <button type="button" class="touch-btn touch-danos ${isDanos ? 'sel-danos' : ''}" data-caja="${item.caja}">
+                  🔴 Daños/Comentarios
+                </button>
+                <button type="button" class="touch-btn touch-noesta ${isNoEsta ? 'sel-noesta' : ''}" data-caja="${item.caja}">
+                  ⚪ No está
+                </button>
+              </div>
+            </td>
+            <td>
+              ${item.comentarios ? `<div class="comment-preview-tag" title="${item.comentarios}">💬 ${item.comentarios}</div>` : '<span style="color:#cbd5e1;">Sin observaciones</span>'}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } else if (isPlacas) {
+        filtered.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><b>${item.caja}</b></td>
+            <td><span style="font-weight:700; color:#0e9f94;">${item.placas}</span></td>
+            <td>${item.estado}</td>
+            <td>${item.mfgYear}</td>
+            <td>${item.make}</td>
+            <td><span class="pill ${item.modulo==='MSM'?'pill-cargada':'pill-vacia'}">${item.modulo}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } else {
+        const numberCounts = {};
+        filtered.forEach(x => {
+          if (x.number) {
+            numberCounts[x.number] = (numberCounts[x.number] || 0) + 1;
+          }
+        });
+        const seenNumbers = new Set();
+
+        filtered.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.setAttribute('id', `row-${item.id}`);
+          
+          const isStorage = (item.status || '').toLowerCase() === 'storage';
+          const boxNumberClass = isStorage ? 'text-storage' : '';
+
+          if (item.number && numberCounts[item.number] > 1) {
+            if (seenNumbers.has(item.number)) {
+              tr.classList.add('row-copia');
+            } else {
+              seenNumbers.add(item.number);
+              tr.classList.add('row-original');
+            }
+          }
+
+          let html = `<td class="${boxNumberClass}"><b>${item.number}</b></td>`;
+
+          if (isMov) {
+            html += `<td>${item.module}</td>`;
+            html += `<td><b>${item.type || '—'}</b></td>`;
+            html += `<td>${item.location || 'Venus'}</td>`;
+            html += `<td><span style="color:#0e9f94; font-weight:700;">${item.operator || '—'}</span></td>`;
+            html += `<td>${item.comments || '—'}</td>`;
+            html += `<td><span style="color:#005ac7; font-weight:700;">${item.requestedBy || '—'}</span></td>`;
+            html += `<td><span style="font-size:0.8rem; font-weight:700; color:#475569;">${item.datetime || '—'}</span></td>`;
+            html += `<td><span class="pill pill-${item.status}">${item.status}</span></td>`;
+          } else if (isMaint) {
+            html += `<td><b>${item.module}</b></td>`;
+            html += `<td>${item.location || 'Venus'}</td>`;
+            html += `<td>${item.comments || '—'}</td>`;
+            html += `<td><span style="font-size:0.8rem; font-weight:700; color:#627488;">${item.mantenimientoDate || 'No registrada'}</span></td>`;
+            html += `<td>
+                      <label class="check-label">
+                        <input type="checkbox" class="maint-checkbox" data-id="${item.id}" ${item.reportadoReparaciones ? 'checked' : ''}>
+                        <span>${item.reportadoReparaciones ? ' Reportado' : 'Pendiente'}</span>
+                      </label>
+                    </td>`;
+          } else {
+            html += `<td><span class="pill pill-${item.status}">${item.status}</span></td>`;
+            html += `<td>${item.location || 'Venus'}</td>`;
+            html += `<td>${item.comments || '—'}</td>`;
+            html += `<td><span style="font-weight:700; color:#0e9f94;">${item.placasInfo}</span></td>`;
+          }
+          
+          const userTag = item.recordedBy ? `<span class="user-tag-subtle" title="Modificado/Registrado por">👤 ${item.recordedBy}</span>` : '';
+
+          html += `<td>
+                    <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                      ${isMov ? `<button type="button" class="action-btn finish-btn" data-id="${item.id}">🔚 Fin de tarea</button>` : ''}
+                      <button type="button" class="secondary edit-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
+                      ${isMov ? `<button type="button" class="danger delete-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>` : ''}
+                      <select class="field st-select" data-id="${item.id}" style="padding:0.2rem; width:auto; font-size:0.8rem; margin-top:0;">
+                        <option value="vacia" ${item.status==='vacia'?'selected':''}>vacia</option>
+                        <option value="cargada" ${item.status==='cargada'?'selected':''}>cargada</option>
+                        <option value="mantenimiento" ${item.status==='mantenimiento'?'selected':''}>mantenimiento</option>
+                        <option value="storage" ${item.status==='storage'?'selected':''}>storage</option>
+                      </select>
+                      ${userTag}
+                    </div>
+                  </td>`;
+          tr.innerHTML = html;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // MANEJADORES DE EVENTOS DE BOTONES TÁCTILES CON FIREBASE
+      if (isRecorrido) {
+        document.querySelectorAll('.touch-vacia').forEach(b => {
+          b.onclick = async function() {
+            const cajaNum = this.getAttribute('data-caja');
+            await updateRecorridoInFirebase(cajaNum, 'vacia', '');
+            showToast(`Caja ${cajaNum} marcada como VACÍA`);
+          };
+        });
+
+        document.querySelectorAll('.touch-cargada').forEach(b => {
+          b.onclick = async function() {
+            const cajaNum = this.getAttribute('data-caja');
+            await updateRecorridoInFirebase(cajaNum, 'cargada', '');
+            showToast(`Caja ${cajaNum} marcada como CARGADA`);
+          };
+        });
+
+        document.querySelectorAll('.touch-danos').forEach(b => {
+          b.onclick = function() {
+            const cajaNum = this.getAttribute('data-caja');
+            activeDamageCaja = cajaNum;
+            const firebaseDoc = recorridoDataMap[`REC_${cajaNum}`];
+            document.getElementById('damage-box-label').textContent = cajaNum;
+            document.getElementById('damage-text-input').value = firebaseDoc ? firebaseDoc.comentarios : '';
+            document.getElementById('damage-modal').style.display = 'flex';
+          };
+        });
+
+        document.querySelectorAll('.touch-noesta').forEach(b => {
+          b.onclick = async function() {
+            const cajaNum = this.getAttribute('data-caja');
+            await updateRecorridoInFirebase(cajaNum, 'noesta', '');
+            showToast(`Caja ${cajaNum} marcada como NO ESTÁ`);
+          };
+        });
+      }
+
+      document.querySelectorAll('#table-head th[data-col]').forEach(th => {
+        th.onclick = function() {
+          const colKey = this.getAttribute('data-col');
+          if (sortColumn === colKey) {
+            sortAsc = !sortAsc;
+          } else {
+            sortColumn = colKey;
+            sortAsc = true;
+          }
+          renderTable();
+        };
+      });
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.onclick = async function(e) {
+          const docId = e.target.getAttribute('data-id');
+          const item = movements.find(m => m.id === docId);
+          if (item && confirm(`¿Deseas borrar permanentemente este registro de la caja ${item.number}?`)) {
+            await deleteDoc(doc(db, "movements", docId));
+            showToast(`Registro de caja ${item.number} eliminado`);
+          }
+        };
+      });
+
+      document.querySelectorAll('.finish-btn').forEach(btn => {
+        btn.onclick = async function(e) {
+          const docId = e.target.getAttribute('data-id');
+          const original = movements.find(m => m.id === docId);
+
+          if (original) {
+            const num = original.number;
+            const currentType = original.type || 'PATIO-RAMPA';
+            const newType = getInverseMovementType(currentType);
+
+            if (confirm(`¿Deseas terminar la tarea seleccionada para la caja ${num}?\n\nSe creará el registro inverso: ${newType}`)) {
+              const rowEl = document.getElementById(`row-${docId}`);
+              if (rowEl) rowEl.classList.add('row-finished');
+
+              const newDocId = `MOV_${original.module}_${num}_${Date.now()}`;
+              const nowStr = new Date().toLocaleString('es-MX');
+
+              await setDoc(doc(db, "movements", newDocId), {
+                number: num,
+                module: original.module,
+                location: original.location || 'Venus',
+                comments: original.comments ? `[Fin de tarea] ${original.comments}` : '[Fin de tarea]',
+                status: original.status || 'vacia',
+                type: newType,
+                operator: original.operator || '—',
+                requestedBy: original.requestedBy || '—',
+                recordedBy: currentUser || 'Sistema',
+                datetime: nowStr,
+                timestamp: Date.now()
+              });
+
+              updateGlobalStatusInFirebase(num, original.module, original.status || 'vacia');
+              showToast(`Tarea de caja ${num} completada`);
+            }
+          }
+        };
+      });
+
+      document.querySelectorAll('.maint-checkbox').forEach(chk => {
+        chk.onchange = async function(e) {
+          const docId = e.target.getAttribute('data-id');
+          const isChecked = e.target.checked;
+          await setDoc(doc(db, "boxes", docId), { reportadoReparaciones: isChecked }, { merge: true });
+          showToast(isChecked ? 'Marcado como reportado' : 'Marcado como pendiente');
+        };
+      });
+
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.onclick = function(e) {
+          const docId = e.target.getAttribute('data-id');
+          const isMovView = view === 'movimientos';
+          const item = (isMovView ? movements : boxes).find(x => x.id === docId);
+          
+          if (item) {
+            editingDocId = docId;
+            document.getElementById('modal-heading').textContent = 'Editar Registro';
+            document.getElementById('box-number').value = item.number || '';
+            document.getElementById('module').value = item.module || 'MSM';
+            document.getElementById('location').value = item.location || 'Venus';
+            document.getElementById('comments').value = item.comments || '';
+            document.getElementById('status').value = item.status || 'vacia';
+            
+            checkAndAutoAssignModule(item.number || '');
+            toggleStorageAlert(item.status);
+
+            const movFields = document.getElementById('movement-only');
+            if (isMovView) {
+              movFields.style.display = 'block';
+              document.getElementById('movement-type').value = item.type || 'PATIO-RAMPA';
+              document.getElementById('movement-operator').value = item.operator || '';
+              document.getElementById('movement-requested-by').value = item.requestedBy || '';
+              document.getElementById('movement-datetime').value = item.datetime || new Date().toLocaleString('es-MX');
+            } else {
+              movFields.style.display = 'none';
+            }
+            
+            document.getElementById('form-modal').style.display = 'flex';
+          }
+        };
+      });
+
+      document.querySelectorAll('.st-select').forEach(s => {
+        s.onchange = async function(e) {
+          const docId = e.target.getAttribute('data-id');
+          const newSt = e.target.value;
+          const isMovView = view === 'movimientos';
+          
+          if (isMovView && newSt === 'storage') {
+            alert('⚠️ ATENCIÓN: Esta caja se ha marcado en estatus de STORAGE.');
+          }
+
+          if (isMovView) {
+            await setDoc(doc(db, "movements", docId), { status: newSt, recordedBy: currentUser || 'Sistema' }, { merge: true });
+            const targetDoc = movements.find(x => x.id === docId);
+            if (targetDoc) {
+              updateGlobalStatusInFirebase(targetDoc.number, targetDoc.module, newSt);
+            }
+          } else {
+            const targetDoc = boxes.find(x => x.id === docId);
+            if (targetDoc) {
+              await setDoc(doc(db, "boxes", docId), { status: newSt, recordedBy: currentUser || 'Sistema' }, { merge: true });
+              updateGlobalStatusInFirebase(targetDoc.number, targetDoc.module, newSt);
+            }
+          }
+          showToast('Estatus actualizado');
+        };
+      });
+    }
+
+    // ACCIONES DE GENERACIÓN DE PLANILLA DE TARJETAS QR (OPCIÓN 1)
+    document.getElementById('print-qr-button').onclick = function() {
+      const gridContainer = document.getElementById('qr-grid');
+      gridContainer.innerHTML = '';
+
+      rawPlacasData.forEach(item => {
+        const mod = catalogMSM.includes(item.caja) ? 'MSM' : catalogNLDC.includes(item.caja) ? 'NLDC' : '—';
+        const fullPayload = `CAJA: ${item.caja}\nMODULO: ${mod}\nPLACAS: ${item.placas} ${item.estado}\nMFG: ${item.mfgYear} (${item.make})`;
+
+        const card = document.createElement('div');
+        card.className = 'qr-card';
+        card.innerHTML = `
+          <h4>CAJA ${item.caja}</h4>
+          <p>MÓDULO ${mod} | PLACAS ${item.placas}</p>
+          <div class="qr-img-box" id="qr-target-${item.caja}"></div>
+          <p style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">MEDLINE LOGISTICS</p>
+        `;
+        gridContainer.appendChild(card);
+
+        new QRCode(document.getElementById(`qr-target-${item.caja}`), {
+          text: fullPayload,
+          width: 120,
+          height: 120,
+          colorDark : "#00205b",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.H
+        });
+      });
+
+      document.getElementById('qr-modal').style.display = 'flex';
+    };
+
+    document.getElementById('close-qr-modal').onclick = () => {
+      document.getElementById('qr-modal').style.display = 'none';
+    };
+
+    // ACCIONES DE ESCÁNER DE CÁMARA QR (OPCIÓN 3)
+    document.getElementById('scan-qr-button').onclick = function() {
+      document.getElementById('camera-modal').style.display = 'flex';
+
+      if (!html5QrCodeScanner) {
+        html5QrCodeScanner = new Html5Qrcode("qr-reader-box");
+      }
+
+      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+      html5QrCodeScanner.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+          stopCamera();
+          document.getElementById('camera-modal').style.display = 'none';
+
+          let detectedCaja = null;
+          const match = decodedText.match(/\d{6}/);
+          if (match) {
+            detectedCaja = match[0];
+          } else {
+            detectedCaja = decodedText.trim();
+          }
+
+          document.getElementById('search').value = detectedCaja;
+          renderTable();
+          showToast(`Caja ${detectedCaja} encontrada por QR`);
+        },
+        (errorMessage) => {
+          // buscando QR...
+        }
+      ).catch(err => {
+        alert("No se pudo acceder a la cámara. Asegúrate de dar permisos de cámara en tu navegador.");
+        document.getElementById('camera-modal').style.display = 'none';
+      });
+    };
+
+    function stopCamera() {
+      if (html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+        html5QrCodeScanner.stop().then(() => {
+          console.log("Cámara detenida");
+        }).catch(err => console.error(err));
+      }
+    }
+
+    document.getElementById('close-camera-modal').onclick = () => {
+      stopCamera();
+      document.getElementById('camera-modal').style.display = 'none';
+    };
+
+    document.getElementById('stop-camera-btn').onclick = () => {
+      stopCamera();
+      document.getElementById('camera-modal').style.display = 'none';
+    };
+
+    // REINICIAR ESTATUS DEL RECORRIDO EN FIREBASE
+    document.getElementById('reset-recorrido-button').onclick = async function() {
+      if (confirm('¿Deseas reiniciar el estatus de todas las cajas a "Vacía" y borrar comentarios del recorrido en tiempo real para todos los usuarios?')) {
+        const querySnapshot = await getDocs(collection(db, "daily_tours"));
+        const batch = writeBatch(db);
+
+        rawPlacasData.forEach(item => {
+          const docRef = doc(db, "daily_tours", `REC_${item.caja}`);
+          batch.set(docRef, {
+            caja: item.caja,
+            estatusRecorrido: 'vacia',
+            comentarios: '',
+            updatedBy: currentUser || 'Sistema',
+            updatedAt: new Date().toLocaleString('es-MX')
+          });
+        });
+
+        await batch.commit();
+        showToast('Estatus de recorrido reiniciados globalmente');
+      }
+    };
+
+    // ACCIONES MODAL DE DAÑOS
+    document.getElementById('close-damage-modal').onclick = () => document.getElementById('damage-modal').style.display = 'none';
+    document.getElementById('cancel-damage-btn').onclick = () => document.getElementById('damage-modal').style.display = 'none';
+
+    document.getElementById('save-damage-btn').onclick = async function() {
+      if (activeDamageCaja) {
+        const txt = document.getElementById('damage-text-input').value.trim();
+        await updateRecorridoInFirebase(activeDamageCaja, 'danos', txt);
+        showToast(`Observación guardada para caja ${activeDamageCaja}`);
+      }
+      document.getElementById('damage-modal').style.display = 'none';
+    };
+
+    function checkAndAutoAssignModule(val) {
+      const detectedMod = detectModuleByBoxNumber(val);
+      const moduleSelect = document.getElementById('module');
+      const hint = document.getElementById('module-auto-hint');
+
+      if (detectedMod) {
+        moduleSelect.value = detectedMod;
+        moduleSelect.disabled = true;
+        hint.style.display = 'block';
+
+        const existingBox = boxes.find(b => b.number === val.trim().toUpperCase());
+        if (existingBox && existingBox.status === 'storage') {
+          document.getElementById('status').value = 'storage';
+          toggleStorageAlert('storage');
+        }
+      } else {
+        moduleSelect.disabled = false;
+        hint.style.display = 'none';
+      }
+    }
+
+    function toggleStorageAlert(statusVal) {
+      const alertBox = document.getElementById('storage-alert-box');
+      if (statusVal === 'storage') {
+        alertBox.style.display = 'block';
+      } else {
+        alertBox.style.display = 'none';
+      }
+    }
+
+    document.getElementById('status').addEventListener('change', function(e) {
+      toggleStorageAlert(e.target.value);
+    });
+
+    document.getElementById('box-number').addEventListener('input', function(e) {
+      checkAndAutoAssignModule(e.target.value);
+    });
+
+    document.getElementById('navigation').onclick = function(e) {
+      const btn = e.target.closest('button');
+      if (btn) {
+        view = btn.getAttribute('data-view');
+        sortColumn = null;
+        render();
+      }
+    };
+
+    document.getElementById('open-form').onclick = function() {
+      editingDocId = null;
+      document.getElementById('modal-heading').textContent = 'Registrar caja';
+      document.getElementById('entry-form').reset();
+      
+      const moduleSelect = document.getElementById('module');
+      moduleSelect.disabled = false;
+      document.getElementById('module-auto-hint').style.display = 'none';
+      document.getElementById('storage-alert-box').style.display = 'none';
+
+      const isMovView = view === 'movimientos';
+      document.getElementById('movement-only').style.display = isMovView ? 'block' : 'none';
+      if (isMovView) {
+        document.getElementById('movement-operator').value = '';
+        document.getElementById('movement-requested-by').value = '';
+        document.getElementById('movement-datetime').value = new Date().toLocaleString('es-MX');
+      }
+      document.getElementById('form-modal').style.display = 'flex';
+    };
+
+    document.getElementById('close-modal').onclick = () => document.getElementById('form-modal').style.display = 'none';
+    document.getElementById('cancel-form').onclick = () => document.getElementById('form-modal').style.display = 'none';
+
+    document.getElementById('entry-form').onsubmit = async function(e) {
+      e.preventDefault();
+      const num = document.getElementById('box-number').value.trim().toUpperCase();
+      
+      const autoMod = detectModuleByBoxNumber(num);
+      const mod = autoMod || document.getElementById('module').value;
+      
+      const loc = document.getElementById('location').value;
+      const comm = document.getElementById('comments').value.trim();
+      const st = document.getElementById('status').value;
+      const type = document.getElementById('movement-type').value;
+      const operatorVal = document.getElementById('movement-operator').value.trim() || '—';
+      const requestedByVal = document.getElementById('movement-requested-by').value.trim() || '—';
+      const dtVal = document.getElementById('movement-datetime').value.trim() || new Date().toLocaleString('es-MX');
+
+      const isMovView = view === 'movimientos';
+
+      if (isMovView && st === 'storage') {
+        const confirmStorage = confirm(`🟣 ATENCIÓN DE STORAGE:\n\nLa caja ${num} está configurada con estatus STORAGE.\n¿Confirmas que deseas registrar este movimiento en almacenamiento?`);
+        if (!confirmStorage) return;
+      }
+
+      const collectionName = isMovView ? 'movements' : 'boxes';
+      const docId = editingDocId || (isMovView ? `MOV_${mod}_${num}_${Date.now()}` : `${mod}_${num}`);
+
+      const payload = { 
+        number: num, 
+        module: mod, 
+        location: loc, 
+        comments: comm, 
+        status: st,
+        recordedBy: currentUser || 'Sistema'
+      };
+
+      if (isMovView) {
+        payload.type = type;
+        payload.operator = operatorVal;
+        payload.requestedBy = requestedByVal;
+        payload.datetime = dtVal;
+        payload.timestamp = Date.now();
+      }
+
+      if (st === 'mantenimiento') {
+        payload.mantenimientoDate = new Date().toLocaleString('es-MX');
+      }
+
+      await setDoc(doc(db, collectionName, docId), payload, { merge: true });
+      updateGlobalStatusInFirebase(num, mod, st);
+      
+      editingDocId = null;
+      document.getElementById('form-modal').style.display = 'none';
+      showToast(`Registro guardado (${num} - Módulo: ${mod})`);
+    };
+
+    document.getElementById('search').oninput = renderTable;
+
+    // BOTÓN COMPARTIR POR WHATSAPP
+    document.getElementById('whatsapp-button').onclick = function() {
+      const today = new Date().toLocaleDateString('es-MX');
+      let text = `📦 *RECORRIDO DIARIO DE CAJAS - MEDLINE*\n📅 *Fecha:* ${today}\n👤 *Inspector:* ${currentUser || 'Sistema'}\n\n`;
+
+      let countVacias = 0;
+      let countCargadas = 0;
+      let countDanos = 0;
+      let countNoEsta = 0;
+
+      const currentList = getMergedRecorridoList();
+
+      currentList.forEach(r => {
+        if (r.estatusRecorrido === 'noesta') {
+          countNoEsta++;
+        } else {
+          const stLabel = r.estatusRecorrido === 'vacia' ? '🟢 Vacía' : r.estatusRecorrido === 'cargada' ? '🟡 Cargada' : '🔴 Daño/Obs';
+          if (r.estatusRecorrido === 'vacia') countVacias++;
+          if (r.estatusRecorrido === 'cargada') countCargadas++;
+          if (r.estatusRecorrido === 'danos') countDanos++;
+
+          text += `• *Caja ${r.caja}* (${r.modulo}) | ${stLabel}`;
+          if (r.comentarios) {
+            text += ` 💬 _"${r.comentarios}"_`;
+          }
+          text += `\n`;
+        }
+      });
+
+      text += `\n📊 *RESUMEN DEL DÍA:*\n• Vacías: ${countVacias}\n• Cargadas: ${countCargadas}\n• Con Daños/Observaciones: ${countDanos}\n• No en venus: ${countNoEsta}\n\n_Medline Control Logístico_`;
+
+      const encodedText = encodeURIComponent(text);
+      window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+    };
+
+    // EXPORTACIÓN A EXCEL
+    document.getElementById('export-button').onclick = function() {
+      const todayDate = new Date().toISOString().split('T')[0];
+
+      if (view === 'recorrido') {
+        const currentList = getMergedRecorridoList();
+        const headers = ['Caja', 'Placas', 'Módulo', 'Estatus Recorrido', 'Comentarios / Daños', 'Inspector'];
+        const rows = currentList.map(r => [
+          r.caja,
+          `${r.placas} ${r.estadoPlaca}`,
+          r.modulo,
+          r.estatusRecorrido === 'vacia' ? 'Vacía' : r.estatusRecorrido === 'cargada' ? 'Cargada' : r.estatusRecorrido === 'danos' ? 'Daños/Comentarios' : 'No está',
+          r.comentarios || 'Sin observaciones',
+          currentUser || 'Sistema'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Recorrido Diario');
+        XLSX.writeFile(wb, `recorrido-diario-${todayDate}.xlsx`);
+
+      } else if (view === 'movimientos') {
+        const headers = ['Caja', 'Módulo', 'Tipo', 'Ubicación', 'Operador', 'Comentarios', 'Solicitud de', 'Fecha y Hora', 'Estatus', 'Registrado Por'];
+        const rows = movements.map(r => [
+          r.number, 
+          r.module, 
+          r.type || '—', 
+          r.location || 'Venus', 
+          r.operator || '—',
+          r.comments || '', 
+          r.requestedBy || '—',
+          r.datetime || '—',
+          r.status,
+          r.recordedBy || 'Sistema'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
+        XLSX.writeFile(wb, 'movimientos-diarios.xlsx');
+
+      } else if (view === 'mantenimiento') {
+        const maintBoxes = boxes.filter(b => b.status === 'mantenimiento');
+        const headers = ['Caja', 'Módulo', 'Ubicación', 'Comentarios', 'Fecha de Registro', 'Reportado a Reparaciones', 'Registrado Por'];
+        const rows = maintBoxes.map(r => [
+          r.number, 
+          r.module, 
+          r.location || 'Venus', 
+          r.comments || '', 
+          r.mantenimientoDate || 'No registrada',
+          r.reportadoReparaciones ? 'SI' : 'NO',
+          r.recordedBy || 'Sistema'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Mantenimiento');
+        XLSX.writeFile(wb, 'reporte-mantenimiento.xlsx');
+
+      } else if (view === 'placas') {
+        const headers = ['Caja', 'Placas', 'Estado', 'MfgYear', 'Make', 'Módulo'];
+        const rows = placasReportData.map(r => [
+          r.caja,
+          r.placas,
+          r.estado,
+          r.mfgYear,
+          r.make,
+          r.modulo
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Placas General');
+        XLSX.writeFile(wb, 'reporte-placas-general.xlsx');
+
+      } else {
+        const moduleBoxes = boxes.filter(b => b.module === view);
+        const headers = ['Caja', 'Estatus', 'Ubicación', 'Comentarios', 'Placas', 'Registrado Por'];
+        const rows = moduleBoxes.map(r => [
+          r.number, 
+          r.status ? (r.status.charAt(0).toUpperCase() + r.status.slice(1)) : 'Vacia', 
+          r.location || 'Venus', 
+          r.comments || '',
+          placasMap[r.number] || '—',
+          r.recordedBy || 'Sistema'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `Inventario ${view}`);
+        XLSX.writeFile(wb, `inventario-${view}.xlsx`);
+      }
+    };
+
+    document.getElementById('clear-button').onclick = async function() {
+      const isMovView = view === 'movimientos';
+      const isMaintView = view === 'mantenimiento';
+
+      if (isMaintView) {
+        alert('Para quitar cajas de Mantenimiento, simplemente cambia el estatus de la caja deseada a "vacia" o "cargada".');
+        return;
+      }
+
+      const mensaje = isMovView 
+        ? '¿Deseas eliminar TODOS los registros de Movimientos Diarios?' 
+        : `¿Deseas restablecer todos los registros de ${view} a Ubicación "Venus", Estatus "vacia" y Comentarios vacíos?`;
+
+      if (confirm(mensaje)) {
+        const collectionName = isMovView ? 'movements' : 'boxes';
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        const batch = writeBatch(db);
+
+        querySnapshot.forEach((docSnap) => {
+          if (isMovView) {
+            batch.delete(docSnap.ref);
+          } else if (docSnap.data().module === view) {
+            batch.update(docSnap.ref, {
+              location: 'Venus',
+              status: 'vacia',
+              comments: '',
+              mantenimientoDate: null,
+              reportadoReparaciones: false,
+              recordedBy: currentUser || 'Sistema'
+            });
+          }
+        });
+
+        await batch.commit();
+        showToast('Tabla reajustada');
+      }
+    };
+  </script>
+</body>
+</html>
