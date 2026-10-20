@@ -102,10 +102,10 @@
     .btn-qr:hover { background:#4f46e5; transform:translateY(-2px); }
 
     .btn-reset {
-      background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:12px; padding:0.5rem 0.9rem;
+      background:#fff1f2; color:#be123c; border:1px solid #fecdd3; border-radius:12px; padding:0.5rem 0.9rem;
       font-weight:700; cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem; font-size:0.85rem;
     }
-    .btn-reset:hover { background:#e2e8f0; color:#1e293b; }
+    .btn-reset:hover { background:#ffe4e6; color:#9f1239; }
 
     .action-btn { 
       background:#eef6ff; color:#1e40af; border:1px solid #bfdbfe; border-radius:8px; padding:0.25rem 0.6rem; 
@@ -222,39 +222,53 @@
       display:none; color:#6b21a8; font-size:0.82rem; font-weight:700;
     }
 
-    /* ESTILOS TÁCTILES MÓVILES PARA EL RECORRIDO DIARIO */
+    /* NUEVO DISEÑO MÓVIL REORGANIZADO PARA RECORRIDO DIARIO */
+    .recorrido-card-row {
+      display:flex; flex-direction:column; gap:0.6rem; padding:0.85rem 1rem; border-bottom:1px solid var(--line);
+    }
+    .recorrido-card-top {
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;
+    }
+    .recorrido-info-box {
+      display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;
+    }
+    
     .touch-btn-group {
-      display:flex; gap:0.35rem; flex-wrap:wrap;
+      display:flex; flex-wrap:wrap; gap:0.4rem; width:100%; margin-top:0.2rem;
     }
     .touch-btn {
-      padding:0.4rem 0.6rem; border-radius:10px; border:1.5px solid #cbd5e1;
-      background:#f8fafc; color:#475569; font-weight:700; font-size:0.78rem;
-      cursor:pointer; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.25rem;
-      user-select:none; -webkit-tap-highlight-color: transparent;
+      flex:1; min-width:85px; padding:0.65rem 0.5rem; border-radius:10px; border:1.5px solid #cbd5e1;
+      background:#ffffff; color:#475569; font-weight:700; font-size:0.82rem;
+      cursor:pointer; transition:all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display:inline-flex; align-items:center; justify-content:center; gap:0.25rem;
+      user-select:none; -webkit-tap-highlight-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .touch-btn:active { transform:scale(0.95); }
+    .touch-btn:active { transform:scale(0.94); }
 
+    /* ESTADOS SELECCIONADOS */
     .touch-btn.sel-vacia {
       background:#10b981 !important; color:white !important; border-color:#059669 !important;
-      box-shadow:0 3px 10px rgba(16,185,129,0.3);
+      box-shadow:0 3px 12px rgba(16,185,129,0.35); font-weight:800;
     }
     .touch-btn.sel-cargada {
       background:#f59e0b !important; color:white !important; border-color:#d97706 !important;
-      box-shadow:0 3px 10px rgba(245,158,11,0.3);
+      box-shadow:0 3px 12px rgba(245,158,11,0.35); font-weight:800;
     }
-    .touch-btn.sel-danos {
+    .touch-btn.sel-mantenimiento {
       background:#ef4444 !important; color:white !important; border-color:#dc2626 !important;
-      box-shadow:0 3px 10px rgba(239,68,68,0.3);
+      box-shadow:0 3px 12px rgba(239,68,68,0.35); font-weight:800;
     }
     .touch-btn.sel-noesta {
       background:#64748b !important; color:white !important; border-color:#475569 !important;
-      box-shadow:0 3px 10px rgba(100,116,139,0.3);
+      box-shadow:0 3px 12px rgba(100,116,139,0.35); font-weight:800;
+    }
+    .touch-btn.btn-comments-active {
+      background:#005ac7 !important; color:white !important; border-color:#0033a0 !important;
+      box-shadow:0 3px 12px rgba(0,90,199,0.35); font-weight:800;
     }
 
     .comment-preview-tag {
-      display:inline-block; background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;
-      font-size:0.75rem; font-weight:700; padding:0.2rem 0.5rem; border-radius:6px; margin-top:0.3rem;
-      max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:0.3rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
+      font-size:0.78rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:8px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
     /* ESTILOS DE PLANILLA DE TARJETAS QR PARA IMPRESIÓN */
@@ -449,11 +463,11 @@
               <button id="reset-recorrido-button" class="btn-reset" style="display:none;">🔄 Reiniciar Estatus</button>
               <button id="whatsapp-button" class="btn-whatsapp" style="display:none;">📲 Compartir por WhatsApp</button>
               <button id="export-button" class="primary" style="padding:0.5rem 1rem; font-size:0.85rem;">📥 Exportar Excel</button>
-              <button id="clear-button" class="danger">Vaciar Tabla</button>
+              <button id="clear-button" class="danger" style="display:none;">Vaciar Tabla</button>
             </div>
           </div>
           <div class="table-wrap">
-            <table>
+            <table id="main-table">
               <thead id="table-head"></thead>
               <tbody id="table-body"></tbody>
             </table>
@@ -477,12 +491,23 @@
         </div>
         <div style="margin-bottom:0.75rem;">
           <label style="font-weight:700; font-size:0.85rem;">Módulo</label>
-          <select id="module" class="field"><option value="MSM">MSM</option><option value="NLDC">NLDC</option></select>
+          <select id="module" class="field">
+            <option value="MSM">MSM</option>
+            <option value="NLDC">NLDC</option>
+            <option value="PDM">PDM</option>
+          </select>
           <small id="module-auto-hint" style="display:none; color:#0e9f94; font-weight:700; font-size:0.75rem; margin-top:2px;">✨ Módulo detectado automáticamente según inventario</small>
         </div>
         <div style="margin-bottom:0.75rem;">
           <label style="font-weight:700; font-size:0.85rem;">Ubicación</label>
-          <select id="location" class="field"><option value="Venus">Venus</option><option value="Milton">Milton</option><option value="ISC">ISC</option><option value="McKinney">McKinney</option><option value="Otro">Otro</option></select>
+          <select id="location" class="field">
+            <option value="Venus">Venus</option>
+            <option value="Milton">Milton</option>
+            <option value="ISC">ISC</option>
+            <option value="McKinney">McKinney</option>
+            <option value="PDM">PDM</option>
+            <option value="Otro">Otro</option>
+          </select>
         </div>
         <div style="margin-bottom:0.75rem;">
           <label style="font-weight:700; font-size:0.85rem;">Comentarios</label>
@@ -556,21 +581,43 @@
     </div>
   </div>
 
-  <!-- MODAL DE COMENTARIOS/DAÑOS PARA RECORRIDO DIARIO -->
+  <!-- MODAL DE CONFIRMACIÓN CON CONTRASEÑA PARA REINICIAR RECORRIDO -->
+  <div id="password-reset-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:400px; text-align:center;">
+      <div style="font-size:2.5rem; margin-bottom:0.5rem;">🔒</div>
+      <h3 style="font-size:1.2rem; font-weight:800; color:#be123c; margin-bottom:0.25rem;">Confirmar Reinicio de Estatus</h3>
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom:1.25rem;">
+        Ingresa tu contraseña de usuario (<strong id="reset-user-display" style="color:#005ac7;">—</strong>) para desmarcar todas las cajas en el recorrido diario.
+      </p>
+      
+      <div style="text-align:left; margin-bottom:1.25rem;">
+        <label style="font-weight:700; font-size:0.8rem; color:#475569;">Contraseña de Usuario</label>
+        <input type="password" id="reset-password-input" class="field" placeholder="••••••••">
+        <div id="reset-password-error" style="display:none; color:#dc2626; font-size:0.78rem; font-weight:700; margin-top:0.4rem;">Contraseña incorrecta</div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+        <button id="cancel-reset-btn" type="button" class="secondary">Cancelar</button>
+        <button id="confirm-reset-btn" type="button" class="primary" style="background:#be123c;">Confirmar y Reiniciar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE COMENTARIOS / MANTENIMIENTO EN RECORRIDO DIARIO -->
   <div id="damage-modal" class="modal-backdrop" style="display:none;">
     <div class="surface modal-content" style="width:100%; max-width:420px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <h3 style="font-size:1.1rem; font-weight:800; color:#dc2626;">🔴 Registrar Daño / Comentario</h3>
+        <h3 id="comment-modal-title" style="font-size:1.1rem; font-weight:800; color:#005ac7;">💬 Agregar Comentario</h3>
         <button id="close-damage-modal" class="secondary" type="button">✕</button>
       </div>
       <p style="font-size:0.85rem; color:#475569; margin-bottom:0.75rem;">
-        Escribe las observaciones de la caja <strong id="damage-box-label" style="color:#005ac7;">—</strong>:
+        Escribe las observaciones para la caja <strong id="damage-box-label" style="color:#005ac7;">—</strong>:
       </p>
-      <textarea id="damage-text-input" class="field" rows="3" placeholder="Ej. Golpes en marco posterior, llanta desgastada, fuga..." style="resize:vertical;"></textarea>
+      <textarea id="damage-text-input" class="field" rows="3" placeholder="Escribe aquí los comentarios o notas..." style="resize:vertical;"></textarea>
       
       <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
         <button id="cancel-damage-btn" type="button" class="secondary">Cancelar</button>
-        <button id="save-damage-btn" type="button" class="primary" style="background:#dc2626;">Guardar Observación</button>
+        <button id="save-damage-btn" type="button" class="primary">Guardar Nota</button>
       </div>
     </div>
   </div>
@@ -720,6 +767,7 @@
     let editingDocId = null;
     let currentUser = null;
     let activeDamageCaja = null;
+    let activeModalMode = 'comments'; // 'comments' o 'mantenimiento'
 
     let sortColumn = null;
     let sortAsc = true;
@@ -729,6 +777,7 @@
       'Milton': '#42658d',
       'ISC': '#e19a68',
       'McKinney': '#8f7ac8',
+      'PDM': '#3b82f6',
       'Otro': '#81a9d1'
     };
 
@@ -841,21 +890,22 @@
       await batch.commit();
     }
 
-    async function updateGlobalStatusInFirebase(num, mod, newSt) {
+    async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal) {
       const batch = writeBatch(db);
       const nowStr = new Date().toLocaleString('es-MX');
 
       boxes.forEach(b => {
         if (b.number === num && (!mod || b.module === mod)) {
           const updateObj = { status: newSt };
-          if (newSt === 'mantenimiento' && !b.mantenimientoDate) {
-            updateObj.mantenimientoDate = nowStr;
+          if (newSt === 'mantenimiento') {
+            if (!b.mantenimientoDate) updateObj.mantenimientoDate = nowStr;
             updateObj.reportadoReparaciones = false;
-          } else if (newSt !== 'mantenimiento') {
+            if (commentsVal) updateObj.comments = commentsVal; // Refleja comentarios en Mantenimiento Global
+          } else {
             updateObj.mantenimientoDate = null;
             updateObj.reportadoReparaciones = false;
           }
-          batch.update(doc(db, "boxes", b.id), updateObj);
+          batch.update(doc(doc(db, "boxes", b.id)), updateObj);
         }
       });
 
@@ -864,13 +914,26 @@
 
     async function updateRecorridoInFirebase(cajaNum, estatusVal, comentariosVal) {
       const docId = `REC_${cajaNum}`;
-      await setDoc(doc(db, "daily_tours", docId), {
+      const payload = {
         caja: cajaNum,
-        estatusRecorrido: estatusVal,
-        comentarios: comentariosVal || '',
         updatedBy: currentUser || 'Sistema',
         updatedAt: new Date().toLocaleString('es-MX')
-      }, { merge: true });
+      };
+
+      if (estatusVal !== null) {
+        payload.estatusRecorrido = estatusVal;
+      }
+      if (comentariosVal !== undefined) {
+        payload.comentarios = comentariosVal;
+      }
+
+      await setDoc(doc(db, "daily_tours", docId), payload, { merge: true });
+
+      // Si cambia a Mantenimiento o Estatus base, sincroniza con el módulo global
+      if (estatusVal === 'mantenimiento' || estatusVal === 'vacia' || estatusVal === 'cargada') {
+        const targetMod = detectModuleByBoxNumber(cajaNum);
+        updateGlobalStatusInFirebase(cajaNum, targetMod, estatusVal, comentariosVal);
+      }
     }
 
     function getInverseMovementType(currentType) {
@@ -893,7 +956,7 @@
           placas: item.placas,
           estadoPlaca: item.estado,
           modulo: mod,
-          estatusRecorrido: firebaseDoc ? firebaseDoc.estatusRecorrido : 'vacia',
+          estatusRecorrido: firebaseDoc ? firebaseDoc.estatusRecorrido : 'none',
           comentarios: firebaseDoc ? firebaseDoc.comentarios : ''
         };
       });
@@ -958,6 +1021,7 @@
       const totalMovs = movements.length;
       const msmMovs = movements.filter(m => m.module === 'MSM').length;
       const nldcMovs = movements.filter(m => m.module === 'NLDC').length;
+      const pdmMovs = movements.filter(m => m.module === 'PDM').length;
 
       const card = document.getElementById('movimientos-summary-card');
       card.innerHTML = `
@@ -974,6 +1038,7 @@
         <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
           <div class="maint-stat-pill" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">🏢 MSM: <strong>${msmMovs}</strong></div>
           <div class="maint-stat-pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">🏭 NLDC: <strong>${nldcMovs}</strong></div>
+          <div class="maint-stat-pill" style="background:#fef3c7; border-color:#fde68a; color:#92400e;">📦 PDM: <strong>${pdmMovs}</strong></div>
         </div>
       `;
     }
@@ -1087,11 +1152,7 @@
       let columns = [];
       if (isRecorrido) {
         columns = [
-          { key: 'caja', label: 'Caja' },
-          { key: 'placas', label: 'Placas' },
-          { key: 'modulo', label: 'Módulo' },
-          { key: 'estatusRecorrido', label: 'Estatus (Toque Fácil)' },
-          { key: 'comentarios', label: 'Comentarios / Daños' }
+          { key: 'caja', label: 'Caja / Placas / Módulo / Comentarios' }
         ];
       } else if (isMov) {
         columns = [
@@ -1147,17 +1208,11 @@
       thHTML += '</tr>';
       thead.innerHTML = thHTML;
 
-      // VISIBILIDAD DE BOTONES
+      clearBtn.style.display = isMov ? 'inline-block' : 'none';
       whatsappBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
       resetRecorridoBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
       scanQrBtn.style.display = isRecorrido ? 'inline-flex' : 'none';
       printQrBtn.style.display = (isRecorrido || isPlacas) ? 'inline-flex' : 'none';
-
-      if (isPlacas || isRecorrido) {
-        clearBtn.style.display = 'none';
-      } else {
-        clearBtn.style.display = 'inline-block';
-      }
 
       if (isMov) {
         counterBadge.style.display = 'inline-flex';
@@ -1239,36 +1294,52 @@
         });
       }
 
+      // NUEVO DISEÑO VERTICAL DE RECORRIDO DIARIO
       if (isRecorrido) {
         filtered.forEach(item => {
           const tr = document.createElement('tr');
           const isVacia = item.estatusRecorrido === 'vacia';
           const isCargada = item.estatusRecorrido === 'cargada';
-          const isDanos = item.estatusRecorrido === 'danos';
+          const isMantenimiento = item.estatusRecorrido === 'mantenimiento' || item.estatusRecorrido === 'danos';
           const isNoEsta = item.estatusRecorrido === 'noesta';
+          const hasComment = Boolean(item.comentarios);
 
           tr.innerHTML = `
-            <td><strong style="font-size:1rem; color:var(--ink);">${item.caja}</strong></td>
-            <td><span style="font-weight:700; color:#0e9f94;">${item.placas} ${item.estadoPlaca}</span></td>
-            <td><span class="pill ${item.modulo==='MSM'?'pill-cargada':'pill-vacia'}">${item.modulo}</span></td>
-            <td>
-              <div class="touch-btn-group">
-                <button type="button" class="touch-btn touch-vacia ${isVacia ? 'sel-vacia' : ''}" data-caja="${item.caja}">
-                  🟢 Vacía
-                </button>
-                <button type="button" class="touch-btn touch-cargada ${isCargada ? 'sel-cargada' : ''}" data-caja="${item.caja}">
-                  🟡 Cargada
-                </button>
-                <button type="button" class="touch-btn touch-danos ${isDanos ? 'sel-danos' : ''}" data-caja="${item.caja}">
-                  🔴 Daños/Comentarios
-                </button>
-                <button type="button" class="touch-btn touch-noesta ${isNoEsta ? 'sel-noesta' : ''}" data-caja="${item.caja}">
-                  ⚪ No está
-                </button>
+            <td style="padding: 0;">
+              <div class="recorrido-card-row">
+                <!-- LÍNEA SUPERIOR CON INFORMACIÓN DE CAJA -->
+                <div class="recorrido-card-top">
+                  <div class="recorrido-info-box">
+                    <strong style="font-size:1.15rem; color:var(--navy);">📦 ${item.caja}</strong>
+                    <span style="font-weight:700; color:#0e9f94; font-size:0.85rem; background:#f0fdf4; padding:0.2rem 0.5rem; border-radius:6px; border:1px solid #bbf7d0;">${item.placas} ${item.estadoPlaca}</span>
+                    <span class="pill ${item.modulo==='MSM'?'pill-cargada':'pill-vacia'}">${item.modulo}</span>
+                  </div>
+                  <div>
+                    ${hasComment ? `<div class="comment-preview-tag" title="${item.comentarios}">💬 ${item.comentarios}</div>` : '<span style="color:#cbd5e1; font-size:0.78rem;">Sin observaciones</span>'}
+                  </div>
+                </div>
+
+                <!-- LÍNEA INFERIOR CON LOS BOTONES TÁCTILES ABAJO -->
+                <div class="touch-btn-group">
+                  <button type="button" class="touch-btn touch-vacia ${isVacia ? 'sel-vacia' : ''}" data-caja="${item.caja}">
+                    🟢 Vacía
+                  </button>
+                  <button type="button" class="touch-btn touch-cargada ${isCargada ? 'sel-cargada' : ''}" data-caja="${item.caja}">
+                    🟡 Cargada
+                  </button>
+                  <button type="button" class="touch-btn touch-danos ${isMantenimiento ? 'sel-mantenimiento' : ''}" data-caja="${item.caja}">
+                    🛠️ Mantenimiento
+                  </button>
+                  <button type="button" class="touch-btn touch-noesta ${isNoEsta ? 'sel-noesta' : ''}" data-caja="${item.caja}">
+                    ⚪ No está
+                  </button>
+
+                  <!-- NUEVO BOTÓN INDEPENDIENTE DE COMENTARIOS -->
+                  <button type="button" class="touch-btn touch-comentarios ${hasComment ? 'btn-comments-active' : ''}" data-caja="${item.caja}">
+                    💬 Comentarios
+                  </button>
+                </div>
               </div>
-            </td>
-            <td>
-              ${item.comentarios ? `<div class="comment-preview-tag" title="${item.comentarios}">💬 ${item.comentarios}</div>` : '<span style="color:#cbd5e1;">Sin observaciones</span>'}
             </td>
           `;
           tbody.appendChild(tr);
@@ -1315,7 +1386,7 @@
           let html = `<td class="${boxNumberClass}"><b>${item.number}</b></td>`;
 
           if (isMov) {
-            html += `<td>${item.module}</td>`;
+            html += `<td><b>${item.module}</b></td>`;
             html += `<td><b>${item.type || '—'}</b></td>`;
             html += `<td>${item.location || 'Venus'}</td>`;
             html += `<td><span style="color:#0e9f94; font-weight:700;">${item.operator || '—'}</span></td>`;
@@ -1367,7 +1438,7 @@
         document.querySelectorAll('.touch-vacia').forEach(b => {
           b.onclick = async function() {
             const cajaNum = this.getAttribute('data-caja');
-            await updateRecorridoInFirebase(cajaNum, 'vacia', '');
+            await updateRecorridoInFirebase(cajaNum, 'vacia');
             showToast(`Caja ${cajaNum} marcada como VACÍA`);
           };
         });
@@ -1375,18 +1446,43 @@
         document.querySelectorAll('.touch-cargada').forEach(b => {
           b.onclick = async function() {
             const cajaNum = this.getAttribute('data-caja');
-            await updateRecorridoInFirebase(cajaNum, 'cargada', '');
+            await updateRecorridoInFirebase(cajaNum, 'cargada');
             showToast(`Caja ${cajaNum} marcada como CARGADA`);
           };
         });
 
+        // BOTÓN 🛠️ MANTENIMIENTO: Modifica estado y pide comentarios que van a Mantenimiento
         document.querySelectorAll('.touch-danos').forEach(b => {
           b.onclick = function() {
             const cajaNum = this.getAttribute('data-caja');
             activeDamageCaja = cajaNum;
+            activeModalMode = 'mantenimiento';
             const firebaseDoc = recorridoDataMap[`REC_${cajaNum}`];
+
+            document.getElementById('comment-modal-title').textContent = '🛠️ Enviar a Mantenimiento';
+            document.getElementById('comment-modal-title').style.color = '#dc2626';
             document.getElementById('damage-box-label').textContent = cajaNum;
             document.getElementById('damage-text-input').value = firebaseDoc ? firebaseDoc.comentarios : '';
+            document.getElementById('save-damage-btn').style.background = '#dc2626';
+            document.getElementById('save-damage-btn').textContent = 'Enviar a Mantenimiento';
+            document.getElementById('damage-modal').style.display = 'flex';
+          };
+        });
+
+        // NUEVO BOTÓN 💬 COMENTARIOS INDEPENDIENTE
+        document.querySelectorAll('.touch-comentarios').forEach(b => {
+          b.onclick = function() {
+            const cajaNum = this.getAttribute('data-caja');
+            activeDamageCaja = cajaNum;
+            activeModalMode = 'comments';
+            const firebaseDoc = recorridoDataMap[`REC_${cajaNum}`];
+
+            document.getElementById('comment-modal-title').textContent = '💬 Agregar / Editar Comentario';
+            document.getElementById('comment-modal-title').style.color = '#005ac7';
+            document.getElementById('damage-box-label').textContent = cajaNum;
+            document.getElementById('damage-text-input').value = firebaseDoc ? firebaseDoc.comentarios : '';
+            document.getElementById('save-damage-btn').style.background = '#005ac7';
+            document.getElementById('save-damage-btn').textContent = 'Guardar Nota';
             document.getElementById('damage-modal').style.display = 'flex';
           };
         });
@@ -1394,7 +1490,7 @@
         document.querySelectorAll('.touch-noesta').forEach(b => {
           b.onclick = async function() {
             const cajaNum = this.getAttribute('data-caja');
-            await updateRecorridoInFirebase(cajaNum, 'noesta', '');
+            await updateRecorridoInFirebase(cajaNum, 'noesta');
             showToast(`Caja ${cajaNum} marcada como NO ESTÁ`);
           };
         });
@@ -1533,7 +1629,7 @@
       });
     }
 
-    // ACCIONES DE GENERACIÓN DE PLANILLA DE TARJETAS QR (OPCIÓN 1)
+    // ACCIONES DE GENERACIÓN DE PLANILLA DE TARJETAS QR
     document.getElementById('print-qr-button').onclick = function() {
       const gridContainer = document.getElementById('qr-grid');
       gridContainer.innerHTML = '';
@@ -1569,7 +1665,7 @@
       document.getElementById('qr-modal').style.display = 'none';
     };
 
-    // ACCIONES DE ESCÁNER DE CÁMARA QR (OPCIÓN 3)
+    // ACCIONES DE ESCÁNER DE CÁMARA QR
     document.getElementById('scan-qr-button').onclick = function() {
       document.getElementById('camera-modal').style.display = 'flex';
 
@@ -1602,7 +1698,7 @@
           // buscando QR...
         }
       ).catch(err => {
-        alert("No se pudo acceder a la cámara. Asegúrate de dar permisos de cámara en tu navegador.");
+        alert("No se pudo acceder a la cámara. Asegúrate de estar navegando sobre una conexión segura HTTPS y otorgar permisos.");
         document.getElementById('camera-modal').style.display = 'none';
       });
     };
@@ -1625,17 +1721,33 @@
       document.getElementById('camera-modal').style.display = 'none';
     };
 
-    // REINICIAR ESTATUS DEL RECORRIDO EN FIREBASE
-    document.getElementById('reset-recorrido-button').onclick = async function() {
-      if (confirm('¿Deseas reiniciar el estatus de todas las cajas a "Vacía" y borrar comentarios del recorrido en tiempo real para todos los usuarios?')) {
-        const querySnapshot = await getDocs(collection(db, "daily_tours"));
+    // REINICIAR ESTATUS DEL RECORRIDO CON REQUISITO DE CONTRASEÑA
+    document.getElementById('reset-recorrido-button').onclick = function() {
+      document.getElementById('reset-user-display').textContent = currentUser || 'Usuario';
+      document.getElementById('reset-password-input').value = '';
+      document.getElementById('reset-password-error').style.display = 'none';
+      document.getElementById('password-reset-modal').style.display = 'flex';
+    };
+
+    document.getElementById('cancel-reset-btn').onclick = () => {
+      document.getElementById('password-reset-modal').style.display = 'none';
+    };
+
+    document.getElementById('confirm-reset-btn').onclick = async function() {
+      const pwdInput = document.getElementById('reset-password-input').value.trim();
+      const errorEl = document.getElementById('reset-password-error');
+
+      if (currentUser && AUTHORIZED_USERS[currentUser] && pwdInput === AUTHORIZED_USERS[currentUser]) {
+        errorEl.style.display = 'none';
+        document.getElementById('password-reset-modal').style.display = 'none';
+
         const batch = writeBatch(db);
 
         rawPlacasData.forEach(item => {
           const docRef = doc(db, "daily_tours", `REC_${item.caja}`);
           batch.set(docRef, {
             caja: item.caja,
-            estatusRecorrido: 'vacia',
+            estatusRecorrido: 'none',
             comentarios: '',
             updatedBy: currentUser || 'Sistema',
             updatedAt: new Date().toLocaleString('es-MX')
@@ -1643,19 +1755,28 @@
         });
 
         await batch.commit();
-        showToast('Estatus de recorrido reiniciados globalmente');
+        showToast('Estatus del recorrido reiniciados (desmarcados)');
+      } else {
+        errorEl.style.display = 'block';
       }
     };
 
-    // ACCIONES MODAL DE DAÑOS
+    // GUARDAR NOTAS O MANTENIMIENTO
     document.getElementById('close-damage-modal').onclick = () => document.getElementById('damage-modal').style.display = 'none';
     document.getElementById('cancel-damage-btn').onclick = () => document.getElementById('damage-modal').style.display = 'none';
 
     document.getElementById('save-damage-btn').onclick = async function() {
       if (activeDamageCaja) {
         const txt = document.getElementById('damage-text-input').value.trim();
-        await updateRecorridoInFirebase(activeDamageCaja, 'danos', txt);
-        showToast(`Observación guardada para caja ${activeDamageCaja}`);
+
+        if (activeModalMode === 'mantenimiento') {
+          await updateRecorridoInFirebase(activeDamageCaja, 'mantenimiento', txt);
+          showToast(`Caja ${activeDamageCaja} enviada a Mantenimiento`);
+        } else {
+          // Modo Comentario puro (no cambia el estatus previo)
+          await updateRecorridoInFirebase(activeDamageCaja, null, txt);
+          showToast(`Comentario guardado para caja ${activeDamageCaja}`);
+        }
       }
       document.getElementById('damage-modal').style.display = 'none';
     };
@@ -1777,7 +1898,7 @@
       }
 
       await setDoc(doc(db, collectionName, docId), payload, { merge: true });
-      updateGlobalStatusInFirebase(num, mod, st);
+      updateGlobalStatusInFirebase(num, mod, st, comm);
       
       editingDocId = null;
       document.getElementById('form-modal').style.display = 'none';
@@ -1786,14 +1907,14 @@
 
     document.getElementById('search').oninput = renderTable;
 
-    // BOTÓN COMPARTIR POR WHATSAPP
+    // BOTÓN COMPARTIR POR WHATSAPP (EXCLUYE 'NO ESTÁ' DEL DESGLOSE INDIVIDUAL)
     document.getElementById('whatsapp-button').onclick = function() {
       const today = new Date().toLocaleDateString('es-MX');
       let text = `📦 *RECORRIDO DIARIO DE CAJAS - MEDLINE*\n📅 *Fecha:* ${today}\n👤 *Inspector:* ${currentUser || 'Sistema'}\n\n`;
 
       let countVacias = 0;
       let countCargadas = 0;
-      let countDanos = 0;
+      let countMantenimiento = 0;
       let countNoEsta = 0;
 
       const currentList = getMergedRecorridoList();
@@ -1801,11 +1922,13 @@
       currentList.forEach(r => {
         if (r.estatusRecorrido === 'noesta') {
           countNoEsta++;
-        } else {
-          const stLabel = r.estatusRecorrido === 'vacia' ? '🟢 Vacía' : r.estatusRecorrido === 'cargada' ? '🟡 Cargada' : '🔴 Daño/Obs';
+        } else if (r.estatusRecorrido !== 'none') {
+          const isMaint = r.estatusRecorrido === 'mantenimiento' || r.estatusRecorrido === 'danos';
+          const stLabel = r.estatusRecorrido === 'vacia' ? '🟢 Vacía' : r.estatusRecorrido === 'cargada' ? '🟡 Cargada' : '🛠️ Mantenimiento';
+          
           if (r.estatusRecorrido === 'vacia') countVacias++;
           if (r.estatusRecorrido === 'cargada') countCargadas++;
-          if (r.estatusRecorrido === 'danos') countDanos++;
+          if (isMaint) countMantenimiento++;
 
           text += `• *Caja ${r.caja}* (${r.modulo}) | ${stLabel}`;
           if (r.comentarios) {
@@ -1815,7 +1938,7 @@
         }
       });
 
-      text += `\n📊 *RESUMEN DEL DÍA:*\n• Vacías: ${countVacias}\n• Cargadas: ${countCargadas}\n• Con Daños/Observaciones: ${countDanos}\n• No en venus: ${countNoEsta}\n\n_Medline Control Logístico_`;
+      text += `\n📊 *RESUMEN DEL DÍA:*\n• Vacías: ${countVacias}\n• Cargadas: ${countCargadas}\n• En Mantenimiento: ${countMantenimiento}\n• No en venus: ${countNoEsta}\n\n_Medline Control Logístico_`;
 
       const encodedText = encodeURIComponent(text);
       window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
@@ -1827,12 +1950,12 @@
 
       if (view === 'recorrido') {
         const currentList = getMergedRecorridoList();
-        const headers = ['Caja', 'Placas', 'Módulo', 'Estatus Recorrido', 'Comentarios / Daños', 'Inspector'];
+        const headers = ['Caja', 'Placas', 'Módulo', 'Estatus Recorrido', 'Comentarios / Fallas', 'Inspector'];
         const rows = currentList.map(r => [
           r.caja,
           `${r.placas} ${r.estadoPlaca}`,
           r.modulo,
-          r.estatusRecorrido === 'vacia' ? 'Vacía' : r.estatusRecorrido === 'cargada' ? 'Cargada' : r.estatusRecorrido === 'danos' ? 'Daños/Comentarios' : 'No está',
+          r.estatusRecorrido === 'vacia' ? 'Vacía' : r.estatusRecorrido === 'cargada' ? 'Cargada' : (r.estatusRecorrido === 'mantenimiento' || r.estatusRecorrido === 'danos') ? 'Mantenimiento' : r.estatusRecorrido === 'noesta' ? 'No está' : 'Sin registrar',
           r.comentarios || 'Sin observaciones',
           currentUser || 'Sistema'
         ]);
@@ -1912,39 +2035,17 @@
 
     document.getElementById('clear-button').onclick = async function() {
       const isMovView = view === 'movimientos';
-      const isMaintView = view === 'mantenimiento';
 
-      if (isMaintView) {
-        alert('Para quitar cajas de Mantenimiento, simplemente cambia el estatus de la caja deseada a "vacia" o "cargada".');
-        return;
-      }
-
-      const mensaje = isMovView 
-        ? '¿Deseas eliminar TODOS los registros de Movimientos Diarios?' 
-        : `¿Deseas restablecer todos los registros de ${view} a Ubicación "Venus", Estatus "vacia" y Comentarios vacíos?`;
-
-      if (confirm(mensaje)) {
-        const collectionName = isMovView ? 'movements' : 'boxes';
-        const querySnapshot = await getDocs(collection(db, collectionName));
+      if (confirm('¿Deseas eliminar TODOS los registros de Movimientos Diarios?')) {
+        const querySnapshot = await getDocs(collection(db, 'movements'));
         const batch = writeBatch(db);
 
         querySnapshot.forEach((docSnap) => {
-          if (isMovView) {
-            batch.delete(docSnap.ref);
-          } else if (docSnap.data().module === view) {
-            batch.update(docSnap.ref, {
-              location: 'Venus',
-              status: 'vacia',
-              comments: '',
-              mantenimientoDate: null,
-              reportadoReparaciones: false,
-              recordedBy: currentUser || 'Sistema'
-            });
-          }
+          batch.delete(docSnap.ref);
         });
 
         await batch.commit();
-        showToast('Tabla reajustada');
+        showToast('Movimientos reajustados');
       }
     };
   </script>
