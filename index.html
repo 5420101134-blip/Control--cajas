@@ -222,7 +222,7 @@
       display:none; color:#6b21a8; font-size:0.82rem; font-weight:700;
     }
 
-    /* NUEVO DISEÑO MÓVIL REORGANIZADO PARA RECORRIDO DIARIO */
+    /* ESTRUCTURA REORGANIZADA DE RECORRIDO DIARIO MÓVIL */
     .recorrido-card-row {
       display:flex; flex-direction:column; gap:0.6rem; padding:0.85rem 1rem; border-bottom:1px solid var(--line);
     }
@@ -271,7 +271,7 @@
       font-size:0.78rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:8px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
-    /* ESTILOS DE PLANILLA DE TARJETAS QR PARA IMPRESIÓN */
+    /* ESTILOS DE TARJETAS QR PARA IMPRESIÓN */
     .qr-grid-container {
       display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:1rem; padding:1rem;
     }
@@ -767,7 +767,7 @@
     let editingDocId = null;
     let currentUser = null;
     let activeDamageCaja = null;
-    let activeModalMode = 'comments'; // 'comments' o 'mantenimiento'
+    let activeModalMode = 'comments';
 
     let sortColumn = null;
     let sortAsc = true;
@@ -852,14 +852,12 @@
       setTimeout(() => toast.remove(), 3000);
     }
 
-    // FIREBASE LISTENERS EN TIEMPO REAL
+    // CORRECCIÓN ANTI-BORRADO: Escucha en tiempo real sin llamar a initDatabase()
     onSnapshot(collection(db, "boxes"), (snapshot) => {
-      if (snapshot.empty) {
-        initDatabase();
-        return;
+      if (!snapshot.empty) {
+        boxes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        render();
       }
-      boxes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      render();
     });
 
     onSnapshot(collection(db, "movements"), (snapshot) => {
@@ -877,37 +875,46 @@
       }
     });
 
-    async function initDatabase() {
-      const batch = writeBatch(db);
-      catalogNLDC.forEach((num) => {
-        const id = `NLDC_${num}`;
-        batch.set(doc(db, "boxes", id), { number: num, module: 'NLDC', location: 'Venus', comments: '', status: 'vacia' });
-      });
-      catalogMSM.forEach((num) => {
-        const id = `MSM_${num}`;
-        batch.set(doc(db, "boxes", id), { number: num, module: 'MSM', location: 'Venus', comments: '', status: 'vacia' });
-      });
-      await batch.commit();
-    }
-
+    // CORRECCIÓN MANTENIMIENTO: Crea o actualiza en la colección global de 'boxes'
     async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal) {
       const batch = writeBatch(db);
       const nowStr = new Date().toLocaleString('es-MX');
 
-      boxes.forEach(b => {
-        if (b.number === num && (!mod || b.module === mod)) {
+      const matchingBoxes = boxes.filter(b => b.number === num);
+
+      if (matchingBoxes.length > 0) {
+        matchingBoxes.forEach(b => {
           const updateObj = { status: newSt };
           if (newSt === 'mantenimiento') {
-            if (!b.mantenimientoDate) updateObj.mantenimientoDate = nowStr;
-            updateObj.reportadoReparaciones = false;
-            if (commentsVal) updateObj.comments = commentsVal; // Refleja comentarios en Mantenimiento Global
+            updateObj.mantenimientoDate = b.mantenimientoDate || nowStr;
+            updateObj.reportadoReparaciones = b.reportadoReparaciones || false;
+            if (commentsVal) updateObj.comments = commentsVal;
           } else {
             updateObj.mantenimientoDate = null;
             updateObj.reportadoReparaciones = false;
           }
-          batch.update(doc(doc(db, "boxes", b.id)), updateObj);
+          batch.update(doc(db, "boxes", b.id), updateObj);
+        });
+      } else {
+        const targetModule = mod || detectModuleByBoxNumber(num) || 'MSM';
+        const newDocId = `${targetModule}_${num}`;
+        
+        const newBoxPayload = {
+          number: num,
+          module: targetModule,
+          location: 'Venus',
+          comments: commentsVal || 'Reportado desde Recorrido Diario',
+          status: newSt,
+          recordedBy: currentUser || 'Sistema'
+        };
+
+        if (newSt === 'mantenimiento') {
+          newBoxPayload.mantenimientoDate = nowStr;
+          newBoxPayload.reportadoReparaciones = false;
         }
-      });
+
+        batch.set(doc(db, "boxes", newDocId), newBoxPayload, { merge: true });
+      }
 
       await batch.commit();
     }
@@ -929,10 +936,9 @@
 
       await setDoc(doc(db, "daily_tours", docId), payload, { merge: true });
 
-      // Si cambia a Mantenimiento o Estatus base, sincroniza con el módulo global
       if (estatusVal === 'mantenimiento' || estatusVal === 'vacia' || estatusVal === 'cargada') {
         const targetMod = detectModuleByBoxNumber(cajaNum);
-        updateGlobalStatusInFirebase(cajaNum, targetMod, estatusVal, comentariosVal);
+        await updateGlobalStatusInFirebase(cajaNum, targetMod, estatusVal, comentariosVal);
       }
     }
 
@@ -1249,7 +1255,6 @@
         }));
       }
 
-      // FILTRADO POR BÚSQUEDA
       let filtered = dataset.filter(x => {
         if (isRecorrido) {
           return (x.caja && x.caja.toLowerCase().includes(search)) ||
@@ -1294,7 +1299,6 @@
         });
       }
 
-      // NUEVO DISEÑO VERTICAL DE RECORRIDO DIARIO
       if (isRecorrido) {
         filtered.forEach(item => {
           const tr = document.createElement('tr');
@@ -1307,7 +1311,6 @@
           tr.innerHTML = `
             <td style="padding: 0;">
               <div class="recorrido-card-row">
-                <!-- LÍNEA SUPERIOR CON INFORMACIÓN DE CAJA -->
                 <div class="recorrido-card-top">
                   <div class="recorrido-info-box">
                     <strong style="font-size:1.15rem; color:var(--navy);">📦 ${item.caja}</strong>
@@ -1319,7 +1322,6 @@
                   </div>
                 </div>
 
-                <!-- LÍNEA INFERIOR CON LOS BOTONES TÁCTILES ABAJO -->
                 <div class="touch-btn-group">
                   <button type="button" class="touch-btn touch-vacia ${isVacia ? 'sel-vacia' : ''}" data-caja="${item.caja}">
                     🟢 Vacía
@@ -1333,8 +1335,6 @@
                   <button type="button" class="touch-btn touch-noesta ${isNoEsta ? 'sel-noesta' : ''}" data-caja="${item.caja}">
                     ⚪ No está
                   </button>
-
-                  <!-- NUEVO BOTÓN INDEPENDIENTE DE COMENTARIOS -->
                   <button type="button" class="touch-btn touch-comentarios ${hasComment ? 'btn-comments-active' : ''}" data-caja="${item.caja}">
                     💬 Comentarios
                   </button>
@@ -1433,7 +1433,6 @@
         });
       }
 
-      // MANEJADORES DE EVENTOS DE BOTONES TÁCTILES CON FIREBASE
       if (isRecorrido) {
         document.querySelectorAll('.touch-vacia').forEach(b => {
           b.onclick = async function() {
@@ -1451,7 +1450,6 @@
           };
         });
 
-        // BOTÓN 🛠️ MANTENIMIENTO: Modifica estado y pide comentarios que van a Mantenimiento
         document.querySelectorAll('.touch-danos').forEach(b => {
           b.onclick = function() {
             const cajaNum = this.getAttribute('data-caja');
@@ -1469,7 +1467,6 @@
           };
         });
 
-        // NUEVO BOTÓN 💬 COMENTARIOS INDEPENDIENTE
         document.querySelectorAll('.touch-comentarios').forEach(b => {
           b.onclick = function() {
             const cajaNum = this.getAttribute('data-caja');
@@ -1629,7 +1626,6 @@
       });
     }
 
-    // ACCIONES DE GENERACIÓN DE PLANILLA DE TARJETAS QR
     document.getElementById('print-qr-button').onclick = function() {
       const gridContainer = document.getElementById('qr-grid');
       gridContainer.innerHTML = '';
@@ -1665,7 +1661,6 @@
       document.getElementById('qr-modal').style.display = 'none';
     };
 
-    // ACCIONES DE ESCÁNER DE CÁMARA QR
     document.getElementById('scan-qr-button').onclick = function() {
       document.getElementById('camera-modal').style.display = 'flex';
 
@@ -1694,9 +1689,7 @@
           renderTable();
           showToast(`Caja ${detectedCaja} encontrada por QR`);
         },
-        (errorMessage) => {
-          // buscando QR...
-        }
+        (errorMessage) => {}
       ).catch(err => {
         alert("No se pudo acceder a la cámara. Asegúrate de estar navegando sobre una conexión segura HTTPS y otorgar permisos.");
         document.getElementById('camera-modal').style.display = 'none';
@@ -1721,7 +1714,6 @@
       document.getElementById('camera-modal').style.display = 'none';
     };
 
-    // REINICIAR ESTATUS DEL RECORRIDO CON REQUISITO DE CONTRASEÑA
     document.getElementById('reset-recorrido-button').onclick = function() {
       document.getElementById('reset-user-display').textContent = currentUser || 'Usuario';
       document.getElementById('reset-password-input').value = '';
@@ -1761,7 +1753,6 @@
       }
     };
 
-    // GUARDAR NOTAS O MANTENIMIENTO
     document.getElementById('close-damage-modal').onclick = () => document.getElementById('damage-modal').style.display = 'none';
     document.getElementById('cancel-damage-btn').onclick = () => document.getElementById('damage-modal').style.display = 'none';
 
@@ -1773,7 +1764,6 @@
           await updateRecorridoInFirebase(activeDamageCaja, 'mantenimiento', txt);
           showToast(`Caja ${activeDamageCaja} enviada a Mantenimiento`);
         } else {
-          // Modo Comentario puro (no cambia el estatus previo)
           await updateRecorridoInFirebase(activeDamageCaja, null, txt);
           showToast(`Comentario guardado para caja ${activeDamageCaja}`);
         }
@@ -1907,7 +1897,6 @@
 
     document.getElementById('search').oninput = renderTable;
 
-    // BOTÓN COMPARTIR POR WHATSAPP (EXCLUYE 'NO ESTÁ' DEL DESGLOSE INDIVIDUAL)
     document.getElementById('whatsapp-button').onclick = function() {
       const today = new Date().toLocaleDateString('es-MX');
       let text = `📦 *RECORRIDO DIARIO DE CAJAS - MEDLINE*\n📅 *Fecha:* ${today}\n👤 *Inspector:* ${currentUser || 'Sistema'}\n\n`;
@@ -1944,7 +1933,6 @@
       window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
     };
 
-    // EXPORTACIÓN A EXCEL
     document.getElementById('export-button').onclick = function() {
       const todayDate = new Date().toISOString().split('T')[0];
 
@@ -2034,8 +2022,6 @@
     };
 
     document.getElementById('clear-button').onclick = async function() {
-      const isMovView = view === 'movimientos';
-
       if (confirm('¿Deseas eliminar TODOS los registros de Movimientos Diarios?')) {
         const querySnapshot = await getDocs(collection(db, 'movements'));
         const batch = writeBatch(db);
