@@ -113,6 +113,12 @@
     }
     .action-btn:hover { background:#dbeafe; transform:scale(1.03); }
 
+    .action-pdm-btn {
+      background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; border-radius:8px; padding:0.25rem 0.6rem;
+      font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.2s ease;
+    }
+    .action-pdm-btn:hover { background:#e9d5ff; transform:scale(1.03); }
+
     .surface { 
       background:white; border:1px solid var(--line); border-radius:16px; 
       box-shadow:0 8px 30px rgba(20,43,62,.045); padding:1.5rem; transition:transform 0.3s ease, box-shadow 0.3s ease;
@@ -222,7 +228,7 @@
       display:none; color:#6b21a8; font-size:0.82rem; font-weight:700;
     }
 
-    /* ESTRUCTURA REORGANIZADA DE RECORRIDO DIARIO MÓVIL */
+    /* RECORRIDO DIARIO MÓVIL */
     .recorrido-card-row {
       display:flex; flex-direction:column; gap:0.6rem; padding:0.85rem 1rem; border-bottom:1px solid var(--line);
     }
@@ -244,7 +250,6 @@
     }
     .touch-btn:active { transform:scale(0.94); }
 
-    /* ESTADOS SELECCIONADOS */
     .touch-btn.sel-vacia {
       background:#10b981 !important; color:white !important; border-color:#059669 !important;
       box-shadow:0 3px 12px rgba(16,185,129,0.35); font-weight:800;
@@ -271,7 +276,12 @@
       font-size:0.78rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:8px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
-    /* ESTILOS DE TARJETAS QR PARA IMPRESIÓN */
+    .timer-badge {
+      display:inline-flex; align-items:center; gap:0.3rem; background:#f0fdf4; border:1px solid #86efac; color:#166534;
+      font-size:0.8rem; font-weight:800; padding:0.25rem 0.6rem; border-radius:8px;
+    }
+
+    /* TARJETAS QR */
     .qr-grid-container {
       display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:1rem; padding:1rem;
     }
@@ -358,6 +368,7 @@
           <button type="button" class="nav-button" data-view="recorrido"><span>📱</span> Recorrido diario</button>
           <button type="button" class="nav-button" data-view="MSM"><span>🏢</span> Módulo MSM</button>
           <button type="button" class="nav-button" data-view="NLDC"><span>🏭</span> Módulo NLDC</button>
+          <button type="button" class="nav-button" data-view="PDM"><span>📦</span> Cajas PDM</button>
           <button type="button" class="nav-button" data-view="mantenimiento"><span>🛠️</span> Mantenimiento</button>
           <button type="button" class="nav-button" data-view="movimientos"><span>🔄</span> Movimientos Diarios</button>
           <button type="button" class="nav-button" data-view="placas"><span>📋</span> Reporte de placas general</button>
@@ -538,6 +549,14 @@
             <input id="movement-datetime" class="field" placeholder="DD/MM/AAAA, HH:mm">
           </div>
         </div>
+
+        <!-- BOTÓN DE BORRAR INDIVIDUAL DENTRO DE EDITAR -->
+        <div id="delete-box-section" style="display:none; margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--line);">
+          <button id="delete-single-box-btn" type="button" class="danger" style="width:100%; padding:0.65rem; font-size:0.85rem; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+            🗑️ Eliminar esta caja del módulo
+          </button>
+        </div>
+
         <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.5rem;">
           <button id="cancel-form" type="button" class="secondary">Cancelar</button>
           <button type="submit" class="primary">Guardar</button>
@@ -759,6 +778,7 @@
     });
 
     let recorridoDataMap = {};
+    let pdmBoxesList = [];
     let html5QrCodeScanner = null;
 
     let boxes = [];
@@ -789,6 +809,30 @@
       if (catalogMSM.includes(cleanNum)) return 'MSM';
       if (catalogNLDC.includes(cleanNum)) return 'NLDC';
       return null;
+    }
+
+    // CALCULAR TIEMPO ASCENDENTE EN NLDC
+    function formatElapsedTime(timestampMillis) {
+      if (!timestampMillis) return '—';
+      const now = Date.now();
+      let diffMs = now - timestampMillis;
+      if (diffMs < 0) diffMs = 0;
+
+      const seconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      const remHours = hours % 24;
+      const remMinutes = minutes % 60;
+
+      if (days > 0) {
+        return `⏱️ ${days}d ${remHours}h ${remMinutes}m`;
+      } else if (hours > 0) {
+        return `⏱️ ${hours}h ${remMinutes}m`;
+      } else {
+        return `⏱️ ${remMinutes} min`;
+      }
     }
 
     const savedUser = localStorage.getItem('medline_user');
@@ -852,7 +896,7 @@
       setTimeout(() => toast.remove(), 3000);
     }
 
-    // CORRECCIÓN ANTI-BORRADO: Escucha en tiempo real sin llamar a initDatabase()
+    // LISTENERS EN TIEMPO REAL
     onSnapshot(collection(db, "boxes"), (snapshot) => {
       if (!snapshot.empty) {
         boxes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -865,6 +909,13 @@
       render();
     });
 
+    onSnapshot(collection(db, "pdm_boxes"), (snapshot) => {
+      pdmBoxesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (view === 'PDM') {
+        renderTable();
+      }
+    });
+
     onSnapshot(collection(db, "daily_tours"), (snapshot) => {
       recorridoDataMap = {};
       snapshot.docs.forEach(doc => {
@@ -875,7 +926,6 @@
       }
     });
 
-    // CORRECCIÓN MANTENIMIENTO: Crea o actualiza en la colección global de 'boxes'
     async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal) {
       const batch = writeBatch(db);
       const nowStr = new Date().toLocaleString('es-MX');
@@ -942,6 +992,27 @@
       }
     }
 
+    // COPIA INDEPENDIENTE AL MÓDULO CAJAS PDM DESDE MOVIMIENTOS DIARIOS
+    async function createPdmBoxCopyFromMovement(movId) {
+      const mov = movements.find(m => m.id === movId);
+      if (!mov) return;
+
+      const nowTs = Date.now();
+      const nowStr = new Date().toLocaleString('es-MX');
+      const newPdmDocId = `PDM_${mov.number}_${nowTs}`;
+
+      await setDoc(doc(db, "pdm_boxes", newPdmDocId), {
+        number: mov.number,
+        comments: mov.comments || 'Copiado desde Movimientos Diarios',
+        datetime: nowStr,
+        timestamp: nowTs,
+        status: 'vacia',
+        recordedBy: currentUser || 'Sistema'
+      });
+
+      showToast(`Caja PDM ${mov.number} copiada al Módulo Cajas PDM`);
+    }
+
     function getInverseMovementType(currentType) {
       switch (currentType) {
         case 'PATIO-RAMPA': return 'RAMPA-PATIO';
@@ -978,6 +1049,7 @@
         view === 'recorrido' ? 'Recorrido Diario (Móvil)' :
         view === 'movimientos' ? 'Movimientos Diarios' : 
         view === 'mantenimiento' ? 'Módulo de Mantenimiento' : 
+        view === 'PDM' ? 'Módulo Cajas PDM' :
         view === 'placas' ? 'Reporte de Placas General' : 'Módulo ' + view;
 
       if (view === 'dashboard') {
@@ -1139,6 +1211,7 @@
       const isRecorrido = view === 'recorrido';
       const isMov = view === 'movimientos';
       const isMaint = view === 'mantenimiento';
+      const isPdm = view === 'PDM';
       const isPlacas = view === 'placas';
       const isModuleView = view === 'MSM' || view === 'NLDC';
 
@@ -1159,6 +1232,15 @@
       if (isRecorrido) {
         columns = [
           { key: 'caja', label: 'Caja / Placas / Módulo / Comentarios' }
+        ];
+      } else if (isPdm) {
+        columns = [
+          { key: 'number', label: 'Número de Caja' },
+          { key: 'comments', label: 'Comentarios' },
+          { key: 'status', label: 'Estatus' },
+          { key: 'datetime', label: 'Fecha y Hora de Registro' },
+          { key: 'timestamp', label: 'Tiempo en NLDC (Ascendente)' },
+          { key: null, label: 'Acciones' }
         ];
       } else if (isMov) {
         columns = [
@@ -1224,7 +1306,7 @@
         counterBadge.style.display = 'inline-flex';
         moduleCounterBadge.style.display = 'none';
         document.getElementById('movimientos-count-num').textContent = movements.length;
-      } else if (isModuleView) {
+      } else if (isModuleView || isPdm) {
         counterBadge.style.display = 'none';
         moduleCounterBadge.style.display = 'inline-flex';
         document.getElementById('module-counter-label').textContent = `Total Registros Módulo ${view}`;
@@ -1242,6 +1324,8 @@
       let dataset = [];
       if (isRecorrido) {
         dataset = getMergedRecorridoList();
+      } else if (isPdm) {
+        dataset = pdmBoxesList;
       } else if (isMov) {
         dataset = movements;
       } else if (isMaint) {
@@ -1281,7 +1365,7 @@
                (x.placasInfo && x.placasInfo.toLowerCase().includes(search));
       });
 
-      if (isModuleView || isPlacas || isRecorrido) {
+      if (isModuleView || isPdm || isPlacas || isRecorrido) {
         document.getElementById('module-count-num').textContent = filtered.length;
       }
 
@@ -1339,6 +1423,28 @@
                     💬 Comentarios
                   </button>
                 </div>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } else if (isPdm) {
+        filtered.forEach(item => {
+          const tr = document.createElement('tr');
+          const elapsedTimeStr = formatElapsedTime(item.timestamp);
+          const userTag = item.recordedBy ? `<span class="user-tag-subtle" title="Registrado por">👤 ${item.recordedBy}</span>` : '';
+
+          tr.innerHTML = `
+            <td><strong style="font-size:1.05rem; color:#005ac7;">📦 ${item.number}</strong></td>
+            <td>${item.comments || '—'}</td>
+            <td><span class="pill pill-vacia">${item.status || 'vacia'}</span></td>
+            <td><span style="font-size:0.8rem; font-weight:700; color:#475569;">${item.datetime || '—'}</span></td>
+            <td><span class="timer-badge">${elapsedTimeStr}</span></td>
+            <td>
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <button type="button" class="danger delete-pdm-btn" data-id="${item.id}" data-num="${item.number}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>
+                ${userTag}
               </div>
             </td>
           `;
@@ -1414,9 +1520,13 @@
           
           const userTag = item.recordedBy ? `<span class="user-tag-subtle" title="Modificado/Registrado por">👤 ${item.recordedBy}</span>` : '';
 
+          // CONDICIONAL DEL BOTÓN PDM VACÍA EN MOVIMIENTOS DIARIOS
+          const showPdmBtn = isMov && (item.module === 'PDM');
+
           html += `<td>
                     <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
                       ${isMov ? `<button type="button" class="action-btn finish-btn" data-id="${item.id}">🔚 Fin de tarea</button>` : ''}
+                      ${showPdmBtn ? `<button type="button" class="action-pdm-btn create-pdm-btn" data-id="${item.id}">📦 PDM Vacía</button>` : ''}
                       <button type="button" class="secondary edit-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
                       ${isMov ? `<button type="button" class="danger delete-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>` : ''}
                       <select class="field st-select" data-id="${item.id}" style="padding:0.2rem; width:auto; font-size:0.8rem; margin-top:0;">
@@ -1489,6 +1599,27 @@
             const cajaNum = this.getAttribute('data-caja');
             await updateRecorridoInFirebase(cajaNum, 'noesta');
             showToast(`Caja ${cajaNum} marcada como NO ESTÁ`);
+          };
+        });
+      }
+
+      // ACCIÓN DEL BOTÓN PDM VACÍA EN MOVIMIENTOS DIARIOS
+      document.querySelectorAll('.create-pdm-btn').forEach(btn => {
+        btn.onclick = async function(e) {
+          const movId = e.target.getAttribute('data-id');
+          await createPdmBoxCopyFromMovement(movId);
+        };
+      });
+
+      if (isPdm) {
+        document.querySelectorAll('.delete-pdm-btn').forEach(b => {
+          b.onclick = async function() {
+            const docId = this.getAttribute('data-id');
+            const num = this.getAttribute('data-num');
+            if (confirm(`¿Deseas eliminar este registro de PDM para la caja ${num}?`)) {
+              await deleteDoc(doc(db, "pdm_boxes", docId));
+              showToast(`Registro PDM de caja ${num} eliminado`);
+            }
           };
         });
       }
@@ -1582,6 +1713,13 @@
             checkAndAutoAssignModule(item.number || '');
             toggleStorageAlert(item.status);
 
+            const deleteSection = document.getElementById('delete-box-section');
+            if (view === 'MSM' || view === 'NLDC' || view === 'mantenimiento') {
+              deleteSection.style.display = 'block';
+            } else {
+              deleteSection.style.display = 'none';
+            }
+
             const movFields = document.getElementById('movement-only');
             if (isMovView) {
               movFields.style.display = 'block';
@@ -1625,6 +1763,19 @@
         };
       });
     }
+
+    // BORRADO INDIVIDUAL DESDE MODAL DE EDICIÓN
+    document.getElementById('delete-single-box-btn').onclick = async function() {
+      if (editingDocId) {
+        const boxNum = document.getElementById('box-number').value;
+        if (confirm(`¿Estás seguro de que deseas ELIMINAR INDIVIDUALMENTE la caja ${boxNum} del módulo ${view}?`)) {
+          await deleteDoc(doc(db, "boxes", editingDocId));
+          document.getElementById('form-modal').style.display = 'none';
+          editingDocId = null;
+          showToast(`Caja ${boxNum} eliminada de la base de datos`);
+        }
+      }
+    };
 
     document.getElementById('print-qr-button').onclick = function() {
       const gridContainer = document.getElementById('qr-grid');
@@ -1827,6 +1978,7 @@
       moduleSelect.disabled = false;
       document.getElementById('module-auto-hint').style.display = 'none';
       document.getElementById('storage-alert-box').style.display = 'none';
+      document.getElementById('delete-box-section').style.display = 'none';
 
       const isMovView = view === 'movimientos';
       document.getElementById('movement-only').style.display = isMovView ? 'block' : 'none';
@@ -1951,6 +2103,21 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Recorrido Diario');
         XLSX.writeFile(wb, `recorrido-diario-${todayDate}.xlsx`);
+
+      } else if (view === 'PDM') {
+        const headers = ['Número de Caja', 'Comentarios', 'Estatus', 'Fecha de Registro', 'Tiempo transcurrido', 'Registrado Por'];
+        const rows = pdmBoxesList.map(r => [
+          r.number,
+          r.comments || '',
+          r.status || 'vacia',
+          r.datetime || '',
+          formatElapsedTime(r.timestamp),
+          r.recordedBy || 'Sistema'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Cajas PDM');
+        XLSX.writeFile(wb, `cajas-pdm-${todayDate}.xlsx`);
 
       } else if (view === 'movimientos') {
         const headers = ['Caja', 'Módulo', 'Tipo', 'Ubicación', 'Operador', 'Comentarios', 'Solicitud de', 'Fecha y Hora', 'Estatus', 'Registrado Por'];
