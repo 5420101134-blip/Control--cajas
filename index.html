@@ -119,12 +119,6 @@
     }
     .action-pdm-btn:hover { background:#e9d5ff; transform:scale(1.03); }
 
-    .history-btn {
-      background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:0.25rem 0.6rem;
-      font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.2s ease;
-    }
-    .history-btn:hover { background:#e2e8f0; color:#0f172a; transform:scale(1.03); }
-
     .surface { 
       background:white; border:1px solid var(--line); border-radius:16px; 
       box-shadow:0 8px 30px rgba(20,43,62,.045); padding:1.5rem; transition:transform 0.3s ease, box-shadow 0.3s ease;
@@ -136,7 +130,6 @@
     .module-card { border-top:4px solid var(--mod-color); }
     .module-card.msm { --mod-color:#42658d; }
     .module-card.nldc { --mod-color:#078779; }
-    .module-card.pdm { --mod-color:#8b5cf6; }
 
     .donut-wrap { position:relative; width:180px; height:180px; margin:auto; }
     .donut-wrap svg { transform:rotate(-90deg); width:100%; height:100%; }
@@ -203,6 +196,12 @@
 
     .pdm-summary-card {
       background:#faf5ff; border:1px solid #e9d5ff; border-left:6px solid #8b5cf6;
+      border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
+    }
+
+    .inactivity-alert-card {
+      background:#fff7ed; border:1px solid #ffedd5; border-left:6px solid #ea580c;
       border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
       display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
     }
@@ -289,29 +288,20 @@
       font-size:0.78rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:8px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
+    /* CONTADOR BOTÓN INTERACTIVO */
     .timer-badge {
       display:inline-flex; align-items:center; gap:0.3rem; background:#f0fdf4; border:1px solid #86efac; color:#166534;
-      font-size:0.8rem; font-weight:800; padding:0.25rem 0.6rem; border-radius:8px;
+      font-size:0.8rem; font-weight:800; padding:0.3rem 0.65rem; border-radius:8px; cursor:pointer;
+      transition:all 0.2s ease; user-select:none;
     }
-
-    /* TIMELINE DE HISTORIAL */
-    .timeline-container {
-      display:flex; flex-direction:column; gap:1rem; margin-top:1rem; max-height:400px; overflow-y:auto; padding-right:0.5rem;
+    .timer-badge:hover {
+      background:#dcfce7; transform:scale(1.04); box-shadow:0 2px 6px rgba(22,101,52,0.15);
     }
-    .timeline-item {
-      position:relative; padding-left:1.5rem; border-left:2px solid #cbd5e1;
+    .timer-badge-warning {
+      background:#fff7ed; border-color:#fdba74; color:#c2410c;
     }
-    .timeline-item::before {
-      content:''; position:absolute; left:-6px; top:4px; width:10px; height:10px; border-radius:50%; background:#005ac7;
-    }
-    .timeline-time {
-      font-size:0.75rem; color:#64748b; font-weight:700; margin-bottom:0.2rem;
-    }
-    .timeline-rel-time {
-      display:inline-block; font-size:0.72rem; font-weight:800; color:#0e9f94; background:#e6fffa; padding:0.1rem 0.4rem; border-radius:6px; margin-left:0.4rem;
-    }
-    .timeline-details {
-      font-size:0.85rem; color:#1e293b; font-weight:600; background:#f8fafc; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid #e2e8f0;
+    .timer-badge-warning:hover {
+      background:#ffedd5;
     }
 
     /* TARJETAS QR */
@@ -435,6 +425,9 @@
 
         <!-- Dashboard View -->
         <section id="dashboard-view">
+          <!-- TARJETA DE ALERTA POR INACTIVIDAD UNICAMENTE DE CAJAS CARGADAS (>3 DÍAS) -->
+          <div id="inactivity-alert-card" class="inactivity-alert-card"></div>
+
           <div id="mantenimiento-summary-card" class="maint-summary-card"></div>
           <div id="pdm-summary-card" class="pdm-summary-card"></div>
           <div id="movimientos-summary-card" class="movs-summary-card"></div>
@@ -599,23 +592,33 @@
     </div>
   </div>
 
-  <!-- MODAL DE HISTORIAL COMPACTO -->
-  <div id="history-modal" class="modal-backdrop" style="display:none;">
-    <div class="surface modal-content" style="width:100%; max-width:520px;">
+  <!-- MODAL DIRECTO PARA ACTUALIZAR FECHA/HORA DEL CONTADOR -->
+  <div id="timer-edit-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:440px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.5rem; border-bottom:1px solid var(--line);">
         <div>
-          <h3 style="font-size:1.15rem; font-weight:800; color:#005ac7;">📜 Historial de Cambios</h3>
-          <p style="font-size:0.8rem; color:#64748b;">Línea de tiempo de la caja <strong id="history-box-num" style="color:#005ac7;">—</strong></p>
+          <h3 style="font-size:1.15rem; font-weight:800; color:#005ac7;">⏱️ Actualizar Contador</h3>
+          <p style="font-size:0.8rem; color:#64748b;">Caja <strong id="timer-box-num" style="color:#005ac7;">—</strong></p>
         </div>
-        <button id="close-history-modal" class="secondary" type="button">✕</button>
+        <button id="close-timer-modal" class="secondary" type="button">✕</button>
       </div>
 
-      <div id="history-timeline" class="timeline-container">
-        <!-- Eventos insertados dinámicamente -->
+      <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:1rem; margin-bottom:1.25rem;">
+        <p style="font-size:0.82rem; color:#0c4a6e; margin-bottom:0.75rem; font-weight:600;">
+          Selecciona libremente la fecha y hora de inicio de este contador, o bien reinícialo a 0 días a partir de este momento:
+        </p>
+        <div style="margin-bottom:0.75rem;">
+          <label style="font-weight:700; font-size:0.8rem; color:#0369a1;">Fecha y Hora Libre</label>
+          <input type="datetime-local" id="custom-timer-input" class="field" style="margin-top:4px;">
+        </div>
       </div>
 
-      <div style="display:flex; justify-content:flex-end; margin-top:1.25rem;">
-        <button id="history-ok-btn" type="button" class="primary">Cerrar</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+        <button id="reset-timer-zero-btn" type="button" class="secondary" style="font-size:0.85rem; padding:0.55rem 0.9rem;">🔄 Reiniciar a 0 días</button>
+        <div style="display:flex; gap:0.5rem;">
+          <button id="cancel-timer-btn" type="button" class="secondary">Cancelar</button>
+          <button id="save-timer-btn" type="button" class="primary" style="background:#0284c7;">Guardar Fecha</button>
+        </div>
       </div>
     </div>
   </div>
@@ -844,6 +847,7 @@
     let currentUser = null;
     let activeDamageCaja = null;
     let activeModalMode = 'comments';
+    let activeTimerBox = null; 
 
     let sortColumn = null;
     let sortAsc = true;
@@ -867,69 +871,19 @@
       return null;
     }
 
-    // REGISTRO DE EVENTO DE HISTORIAL
-    async function logBoxHistory(boxNum, location, status, comments) {
-      if (!boxNum) return;
-      const nowTs = Date.now();
-      const nowStr = new Date().toLocaleString('es-MX');
-
-      await addDoc(collection(db, "box_history"), {
-        number: boxNum,
-        location: location || 'Venus',
-        status: status || 'vacia',
-        comments: comments || '',
-        recordedBy: currentUser || 'Sistema',
-        timestamp: nowTs,
-        datetime: nowStr
-      });
-    }
-
-    // TIEMPO RELATIVO HACE CUÁNTO TIEMPO FUE EL CAMBIO
-    function formatRelativeTime(timestampMillis) {
-      if (!timestampMillis) return '';
-      const now = Date.now();
-      let diffMs = now - timestampMillis;
-      if (diffMs < 0) diffMs = 0;
-
-      const seconds = Math.floor(diffMs / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const days = Math.floor(hours / 24);
-
-      if (days > 0) {
-        const remHours = hours % 24;
-        return `Hace ${days}d ${remHours}h`;
-      } else if (hours > 0) {
-        const remMinutes = minutes % 60;
-        return `Hace ${hours}h ${remMinutes}m`;
-      } else if (minutes > 0) {
-        return `Hace ${minutes} min`;
-      } else {
-        return `Hace unos segundos`;
-      }
-    }
-
-    // CALCULAR TIEMPO ASCENDENTE EN CAJAS PDM
+    // CALCULAR TIEMPO TRANSCURRIDO ÚNICAMENTE EN DÍAS
     function formatElapsedTime(timestampMillis) {
-      if (!timestampMillis) return '—';
+      if (!timestampMillis) return '0 días';
       const now = Date.now();
       let diffMs = now - timestampMillis;
       if (diffMs < 0) diffMs = 0;
 
-      const seconds = Math.floor(diffMs / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const days = Math.floor(hours / 24);
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-      const remHours = hours % 24;
-      const remMinutes = minutes % 60;
-
-      if (days > 0) {
-        return `⏱️ ${days}d ${remHours}h ${remMinutes}m`;
-      } else if (hours > 0) {
-        return `⏱️ ${hours}h ${remMinutes}m`;
+      if (days === 1) {
+        return `⏱️ 1 día`;
       } else {
-        return `⏱️ ${remMinutes} min`;
+        return `⏱️ ${days} días`;
       }
     }
 
@@ -1024,15 +978,17 @@
       }
     });
 
+    // ACTUALIZACIÓN GLOBAL DE ESTATUS EN FIREBASE (RESPETA "STORAGE")
     async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal, locationVal) {
       const batch = writeBatch(db);
       const nowStr = new Date().toLocaleString('es-MX');
+      const nowTs = Date.now();
 
       const matchingBoxes = boxes.filter(b => b.number === num);
 
       if (matchingBoxes.length > 0) {
         matchingBoxes.forEach(b => {
-          const updateObj = { status: newSt };
+          const updateObj = { status: newSt, lastUpdatedTimestamp: nowTs };
           if (locationVal) updateObj.location = locationVal;
           if (newSt === 'mantenimiento') {
             updateObj.mantenimientoDate = b.mantenimientoDate || nowStr;
@@ -1052,8 +1008,9 @@
           number: num,
           module: targetModule,
           location: locationVal || 'Venus',
-          comments: commentsVal || 'Reportado desde Recorrido Diario',
+          comments: commentsVal || 'Reportado desde sistema',
           status: newSt,
+          lastUpdatedTimestamp: nowTs,
           recordedBy: currentUser || 'Sistema'
         };
 
@@ -1066,7 +1023,6 @@
       }
 
       await batch.commit();
-      await logBoxHistory(num, locationVal || 'Venus', newSt, commentsVal);
     }
 
     async function updateRecorridoInFirebase(cajaNum, estatusVal, comentariosVal) {
@@ -1092,7 +1048,6 @@
       }
     }
 
-    // COPIA INDEPENDIENTE AL MÓDULO CAJAS PDM DESDE MOVIMIENTOS DIARIOS
     async function createPdmBoxCopyFromMovement(movId) {
       const mov = movements.find(m => m.id === movId);
       if (!mov) return;
@@ -1155,6 +1110,7 @@
       if (view === 'dashboard') {
         document.getElementById('dashboard-view').style.display = 'block';
         document.getElementById('table-view').style.display = 'none';
+        renderInactivityAlert();
         renderMantenimientoSummary();
         renderPdmSummary();
         renderMovimientosSummary();
@@ -1165,6 +1121,44 @@
         document.getElementById('table-view').style.display = 'block';
         renderTable();
       }
+    }
+
+    // TARJETA DE ALERTA DE CAJAS SIN ACTUALIZAR > 3 DÍAS (SOLO PARA ESTATUS "CARGADA")
+    function renderInactivityAlert() {
+      const now = Date.now();
+      const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
+      const inactiveBoxes = boxes.filter(b => {
+        const isCargada = (b.status || '').toLowerCase() === 'cargada';
+        if (!isCargada || !b.lastUpdatedTimestamp) return false;
+        return (now - b.lastUpdatedTimestamp) > THREE_DAYS_MS;
+      });
+
+      const totalInactive = inactiveBoxes.length;
+      const card = document.getElementById('inactivity-alert-card');
+
+      if (totalInactive === 0) {
+        card.style.display = 'none';
+        return;
+      }
+
+      card.style.display = 'flex';
+      const boxPills = inactiveBoxes.map(b => `<span style="background:white; border:1px solid #fed7aa; border-radius:6px; padding:0.15rem 0.5rem; font-size:0.78rem; font-weight:800; color:#c2410c;">📦 ${b.number} (${b.module})</span>`).join(' ');
+
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="background:#ffedd5; border-radius:12px; padding:0.75rem; font-size:1.5rem;">⚠️</div>
+          <div>
+            <div style="font-size:0.8rem; font-weight:800; color:#ea580c; text-transform:uppercase;">Alerta: Cajas Cargadas Inactivas (> 3 Días)</div>
+            <div style="font-size:1.1rem; font-weight:800; color:#172b40; margin-top:0.1rem;">
+              ${totalInactive} ${totalInactive === 1 ? 'caja en estatus CARGADA lleva' : 'cajas en estatus CARGADA llevan'} más de 3 días sin movimiento
+            </div>
+            <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.5rem;">
+              ${boxPills}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function renderMantenimientoSummary() {
@@ -1196,7 +1190,6 @@
       `;
     }
 
-    // CAMBIO 3: RESUMEN DE CAJAS PDM EN DASHBOARD
     function renderPdmSummary() {
       const totalPdm = pdmBoxesList.length;
       const vaciasPdm = pdmBoxesList.filter(b => (b.status || 'vacia') === 'vacia').length;
@@ -1365,7 +1358,7 @@
           { key: 'comments', label: 'Comentarios' },
           { key: 'status', label: 'Estatus' },
           { key: 'datetime', label: 'Fecha y Hora de Registro' },
-          { key: 'timestamp', label: 'Tiempo transcurrido (Ascendente)' },
+          { key: 'timestamp', label: 'Antigüedad en Días (Clic p/ editar)' },
           { key: null, label: 'Acciones' }
         ];
       } else if (isMov) {
@@ -1407,6 +1400,7 @@
           { key: 'location', label: 'Ubicación' },
           { key: 'comments', label: 'Comentarios' },
           { key: 'placasInfo', label: 'Placas' },
+          { key: 'lastUpdatedTimestamp', label: 'Antigüedad en Días (Clic p/ editar)' },
           { key: null, label: 'Acciones' }
         ];
       }
@@ -1497,8 +1491,8 @@
 
       if (sortColumn) {
         filtered.sort((a, b) => {
-          let valA = a[sortColumn] || '';
-          let valB = b[sortColumn] || '';
+          let valA = a[sortColumn] || 0;
+          let valB = b[sortColumn] || 0;
           
           if (typeof valA === 'boolean') valA = valA ? 1 : 0;
           if (typeof valB === 'boolean') valB = valB ? 1 : 0;
@@ -1556,7 +1550,6 @@
         });
 
       } else if (isPdm) {
-        // CAMBIO 2: TABLA PDM CON EDITAR CONSERVANDO TIMESTAMPS
         filtered.forEach(item => {
           const tr = document.createElement('tr');
           const elapsedTimeStr = formatElapsedTime(item.timestamp);
@@ -1567,7 +1560,7 @@
             <td>${item.comments || '—'}</td>
             <td><span class="pill pill-${item.status || 'vacia'}">${item.status || 'vacia'}</span></td>
             <td><span style="font-size:0.8rem; font-weight:700; color:#475569;">${item.datetime || '—'}</span></td>
-            <td><span class="timer-badge">${elapsedTimeStr}</span></td>
+            <td><span class="timer-badge open-timer-btn" data-id="${item.id}" data-type="pdm" data-num="${item.number}">${elapsedTimeStr}</span></td>
             <td>
               <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
                 <button type="button" class="secondary edit-pdm-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
@@ -1600,6 +1593,8 @@
           }
         });
         const seenNumbers = new Set();
+        const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+        const nowMs = Date.now();
 
         filtered.forEach(item => {
           const tr = document.createElement('tr');
@@ -1640,22 +1635,24 @@
                       </label>
                     </td>`;
           } else {
+            const isCargada = (item.status || '').toLowerCase() === 'cargada';
+            const isWarning = isCargada && item.lastUpdatedTimestamp && (nowMs - item.lastUpdatedTimestamp) > THREE_DAYS_MS;
+            const timerBadgeClass = isWarning ? 'timer-badge timer-badge-warning open-timer-btn' : 'timer-badge open-timer-btn';
+
             html += `<td><span class="pill pill-${item.status}">${item.status}</span></td>`;
             html += `<td>${item.location || 'Venus'}</td>`;
             html += `<td>${item.comments || '—'}</td>`;
             html += `<td><span style="font-weight:700; color:#0e9f94;">${item.placasInfo}</span></td>`;
+            html += `<td><span class="${timerBadgeClass}" data-id="${item.id}" data-type="box" data-num="${item.number}">${formatElapsedTime(item.lastUpdatedTimestamp)}</span></td>`;
           }
           
           const userTag = item.recordedBy ? `<span class="user-tag-subtle" title="Modificado/Registrado por">👤 ${item.recordedBy}</span>` : '';
-
           const showPdmBtn = isMov && (item.module === 'PDM');
-          const showHistoryBtn = isModuleView || isMaint;
 
           html += `<td>
                     <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
                       ${isMov ? `<button type="button" class="action-btn finish-btn" data-id="${item.id}">🔚 Fin de tarea</button>` : ''}
                       ${showPdmBtn ? `<button type="button" class="action-pdm-btn create-pdm-btn" data-id="${item.id}">📦 PDM Vacía</button>` : ''}
-                      ${showHistoryBtn ? `<button type="button" class="history-btn view-history-btn" data-number="${item.number}">📜 Historial</button>` : ''}
                       <button type="button" class="secondary edit-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
                       ${isMov ? `<button type="button" class="danger delete-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>` : ''}
                       <select class="field st-select" data-id="${item.id}" style="padding:0.2rem; width:auto; font-size:0.8rem; margin-top:0;">
@@ -1732,41 +1729,17 @@
         });
       }
 
-      // CAMBIO 4: MOSTRAR MODAL EMERGENTE DE HISTORIAL
-      document.querySelectorAll('.view-history-btn').forEach(btn => {
-        btn.onclick = async function(e) {
-          const num = e.target.getAttribute('data-number');
-          document.getElementById('history-box-num').textContent = num;
-          const container = document.getElementById('history-timeline');
-          container.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#64748b;">Cargando historial...</div>';
-          document.getElementById('history-modal').style.display = 'flex';
+      // ACCIÓN DE CLIC DIRECTO SOBRE EL CONTADOR PARA EDITAR FECHA/HORA
+      document.querySelectorAll('.open-timer-btn').forEach(btn => {
+        btn.onclick = function(e) {
+          const targetId = e.currentTarget.getAttribute('data-id');
+          const targetType = e.currentTarget.getAttribute('data-type');
+          const num = e.currentTarget.getAttribute('data-num');
 
-          const q = query(collection(db, "box_history"), orderBy("timestamp", "desc"));
-          const snapshot = await getDocs(q);
-          const historyDocs = snapshot.docs.map(doc => doc.data()).filter(h => h.number === num);
-
-          container.innerHTML = '';
-          if (historyDocs.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#94a3b8; font-weight:600;">No hay cambios registrados en el historial para esta caja.</div>';
-          } else {
-            historyDocs.forEach(item => {
-              const relTime = formatRelativeTime(item.timestamp);
-              const el = document.createElement('div');
-              el.className = 'timeline-item';
-              el.innerHTML = `
-                <div class="timeline-time">
-                  ${item.datetime || '—'}
-                  ${relTime ? `<span class="timeline-rel-time">${relTime}</span>` : ''}
-                </div>
-                <div class="timeline-details">
-                  <div><strong>Estatus:</strong> <span class="pill pill-${item.status}">${item.status}</span> | <strong>Ubicación:</strong> ${item.location}</div>
-                  ${item.comments ? `<div style="margin-top:0.2rem; color:#475569;">💬 ${item.comments}</div>` : ''}
-                  <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.3rem;">👤 Registrado por: ${item.recordedBy || 'Sistema'}</div>
-                </div>
-              `;
-              container.appendChild(el);
-            });
-          }
+          activeTimerBox = { id: targetId, type: targetType, number: num };
+          document.getElementById('timer-box-num').textContent = num;
+          document.getElementById('custom-timer-input').value = '';
+          document.getElementById('timer-edit-modal').style.display = 'flex';
         };
       });
 
@@ -1955,8 +1928,40 @@
       });
     }
 
-    document.getElementById('close-history-modal').onclick = () => document.getElementById('history-modal').style.display = 'none';
-    document.getElementById('history-ok-btn').onclick = () => document.getElementById('history-modal').style.display = 'none';
+    // ACCIONES DE EDICIÓN DEL CONTADOR EN EL MODAL DE TIEMPO
+    document.getElementById('save-timer-btn').onclick = async function() {
+      const val = document.getElementById('custom-timer-input').value;
+      if (!val) {
+        alert('Por favor selecciona una fecha y hora válidas.');
+        return;
+      }
+      if (activeTimerBox) {
+        const customTs = new Date(val).getTime();
+        if (activeTimerBox.type === 'pdm') {
+          await setDoc(doc(db, "pdm_boxes", activeTimerBox.id), { timestamp: customTs }, { merge: true });
+        } else {
+          await setDoc(doc(db, "boxes", activeTimerBox.id), { lastUpdatedTimestamp: customTs }, { merge: true });
+        }
+        document.getElementById('timer-edit-modal').style.display = 'none';
+        showToast(`Contador actualizado para caja ${activeTimerBox.number}`);
+      }
+    };
+
+    document.getElementById('reset-timer-zero-btn').onclick = async function() {
+      if (activeTimerBox) {
+        const nowTs = Date.now();
+        if (activeTimerBox.type === 'pdm') {
+          await setDoc(doc(db, "pdm_boxes", activeTimerBox.id), { timestamp: nowTs }, { merge: true });
+        } else {
+          await setDoc(doc(db, "boxes", activeTimerBox.id), { lastUpdatedTimestamp: nowTs }, { merge: true });
+        }
+        document.getElementById('timer-edit-modal').style.display = 'none';
+        showToast(`Contador de caja ${activeTimerBox.number} reiniciado a 0 días`);
+      }
+    };
+
+    document.getElementById('close-timer-modal').onclick = () => document.getElementById('timer-edit-modal').style.display = 'none';
+    document.getElementById('cancel-timer-btn').onclick = () => document.getElementById('timer-edit-modal').style.display = 'none';
 
     // BORRADO INDIVIDUAL DESDE MODAL DE EDICIÓN
     document.getElementById('delete-single-box-btn').onclick = async function() {
@@ -2116,7 +2121,6 @@
       document.getElementById('damage-modal').style.display = 'none';
     };
 
-    // CAMBIO 1: PREDETERMINAR ESTATUS ACTUAL AUTOMÁTICAMENTE SEGÚN LA CAJA
     function checkAndAutoAssignModule(val) {
       const cleanNum = val.trim().toUpperCase();
       const detectedMod = detectModuleByBoxNumber(cleanNum);
@@ -2195,7 +2199,6 @@
     document.getElementById('entry-form').onsubmit = async function(e) {
       e.preventDefault();
 
-      // EDITAR REGISTRO DE PDM CONSERVANDO TIMESTAMPS
       if (editingPdmDocId) {
         const comm = document.getElementById('comments').value.trim();
         const st = document.getElementById('status').value;
@@ -2319,7 +2322,7 @@
         XLSX.writeFile(wb, `recorrido-diario-${todayDate}.xlsx`);
 
       } else if (view === 'PDM') {
-        const headers = ['Número de Caja', 'Comentarios', 'Estatus', 'Fecha de Registro', 'Tiempo transcurrido', 'Registrado Por'];
+        const headers = ['Número de Caja', 'Comentarios', 'Estatus', 'Fecha de Registro', 'Antigüedad en Días', 'Registrado Por'];
         const rows = pdmBoxesList.map(r => [
           r.number,
           r.comments || '',
@@ -2386,13 +2389,14 @@
 
       } else {
         const moduleBoxes = boxes.filter(b => b.module === view);
-        const headers = ['Caja', 'Estatus', 'Ubicación', 'Comentarios', 'Placas', 'Registrado Por'];
+        const headers = ['Caja', 'Estatus', 'Ubicación', 'Comentarios', 'Placas', 'Antigüedad en Días', 'Registrado Por'];
         const rows = moduleBoxes.map(r => [
           r.number, 
           r.status ? (r.status.charAt(0).toUpperCase() + r.status.slice(1)) : 'Vacia', 
           r.location || 'Venus', 
           r.comments || '',
           placasMap[r.number] || '—',
+          formatElapsedTime(r.lastUpdatedTimestamp),
           r.recordedBy || 'Sistema'
         ]);
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
