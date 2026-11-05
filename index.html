@@ -119,6 +119,12 @@
     }
     .action-pdm-btn:hover { background:#e9d5ff; transform:scale(1.03); }
 
+    .history-btn {
+      background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:0.25rem 0.6rem;
+      font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.2s ease;
+    }
+    .history-btn:hover { background:#e2e8f0; color:#0f172a; transform:scale(1.03); }
+
     .surface { 
       background:white; border:1px solid var(--line); border-radius:16px; 
       box-shadow:0 8px 30px rgba(20,43,62,.045); padding:1.5rem; transition:transform 0.3s ease, box-shadow 0.3s ease;
@@ -130,6 +136,7 @@
     .module-card { border-top:4px solid var(--mod-color); }
     .module-card.msm { --mod-color:#42658d; }
     .module-card.nldc { --mod-color:#078779; }
+    .module-card.pdm { --mod-color:#8b5cf6; }
 
     .donut-wrap { position:relative; width:180px; height:180px; margin:auto; }
     .donut-wrap svg { transform:rotate(-90deg); width:100%; height:100%; }
@@ -190,6 +197,12 @@
 
     .movs-summary-card {
       background:#eff6ff; border:1px solid #bfdbfe; border-left:6px solid #3b82f6;
+      border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
+    }
+
+    .pdm-summary-card {
+      background:#faf5ff; border:1px solid #e9d5ff; border-left:6px solid #8b5cf6;
       border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;
       display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;
     }
@@ -279,6 +292,26 @@
     .timer-badge {
       display:inline-flex; align-items:center; gap:0.3rem; background:#f0fdf4; border:1px solid #86efac; color:#166534;
       font-size:0.8rem; font-weight:800; padding:0.25rem 0.6rem; border-radius:8px;
+    }
+
+    /* TIMELINE DE HISTORIAL */
+    .timeline-container {
+      display:flex; flex-direction:column; gap:1rem; margin-top:1rem; max-height:400px; overflow-y:auto; padding-right:0.5rem;
+    }
+    .timeline-item {
+      position:relative; padding-left:1.5rem; border-left:2px solid #cbd5e1;
+    }
+    .timeline-item::before {
+      content:''; position:absolute; left:-6px; top:4px; width:10px; height:10px; border-radius:50%; background:#005ac7;
+    }
+    .timeline-time {
+      font-size:0.75rem; color:#64748b; font-weight:700; margin-bottom:0.2rem;
+    }
+    .timeline-rel-time {
+      display:inline-block; font-size:0.72rem; font-weight:800; color:#0e9f94; background:#e6fffa; padding:0.1rem 0.4rem; border-radius:6px; margin-left:0.4rem;
+    }
+    .timeline-details {
+      font-size:0.85rem; color:#1e293b; font-weight:600; background:#f8fafc; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid #e2e8f0;
     }
 
     /* TARJETAS QR */
@@ -403,6 +436,7 @@
         <!-- Dashboard View -->
         <section id="dashboard-view">
           <div id="mantenimiento-summary-card" class="maint-summary-card"></div>
+          <div id="pdm-summary-card" class="pdm-summary-card"></div>
           <div id="movimientos-summary-card" class="movs-summary-card"></div>
 
           <div class="grid">
@@ -509,7 +543,7 @@
           </select>
           <small id="module-auto-hint" style="display:none; color:#0e9f94; font-weight:700; font-size:0.75rem; margin-top:2px;">✨ Módulo detectado automáticamente según inventario</small>
         </div>
-        <div style="margin-bottom:0.75rem;">
+        <div style="margin-bottom:0.75rem;" id="location-field-group">
           <label style="font-weight:700; font-size:0.85rem;">Ubicación</label>
           <select id="location" class="field">
             <option value="Venus">Venus</option>
@@ -562,6 +596,27 @@
           <button type="submit" class="primary">Guardar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE HISTORIAL COMPACTO -->
+  <div id="history-modal" class="modal-backdrop" style="display:none;">
+    <div class="surface modal-content" style="width:100%; max-width:520px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.5rem; border-bottom:1px solid var(--line);">
+        <div>
+          <h3 style="font-size:1.15rem; font-weight:800; color:#005ac7;">📜 Historial de Cambios</h3>
+          <p style="font-size:0.8rem; color:#64748b;">Línea de tiempo de la caja <strong id="history-box-num" style="color:#005ac7;">—</strong></p>
+        </div>
+        <button id="close-history-modal" class="secondary" type="button">✕</button>
+      </div>
+
+      <div id="history-timeline" class="timeline-container">
+        <!-- Eventos insertados dinámicamente -->
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:1.25rem;">
+        <button id="history-ok-btn" type="button" class="primary">Cerrar</button>
+      </div>
     </div>
   </div>
 
@@ -645,7 +700,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs 
+      getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch, getDocs, addDoc, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -785,6 +840,7 @@
     let movements = [];
     let view = 'dashboard';
     let editingDocId = null;
+    let editingPdmDocId = null;
     let currentUser = null;
     let activeDamageCaja = null;
     let activeModalMode = 'comments';
@@ -811,7 +867,49 @@
       return null;
     }
 
-    // CALCULAR TIEMPO ASCENDENTE EN NLDC
+    // REGISTRO DE EVENTO DE HISTORIAL
+    async function logBoxHistory(boxNum, location, status, comments) {
+      if (!boxNum) return;
+      const nowTs = Date.now();
+      const nowStr = new Date().toLocaleString('es-MX');
+
+      await addDoc(collection(db, "box_history"), {
+        number: boxNum,
+        location: location || 'Venus',
+        status: status || 'vacia',
+        comments: comments || '',
+        recordedBy: currentUser || 'Sistema',
+        timestamp: nowTs,
+        datetime: nowStr
+      });
+    }
+
+    // TIEMPO RELATIVO HACE CUÁNTO TIEMPO FUE EL CAMBIO
+    function formatRelativeTime(timestampMillis) {
+      if (!timestampMillis) return '';
+      const now = Date.now();
+      let diffMs = now - timestampMillis;
+      if (diffMs < 0) diffMs = 0;
+
+      const seconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) {
+        const remHours = hours % 24;
+        return `Hace ${days}d ${remHours}h`;
+      } else if (hours > 0) {
+        const remMinutes = minutes % 60;
+        return `Hace ${hours}h ${remMinutes}m`;
+      } else if (minutes > 0) {
+        return `Hace ${minutes} min`;
+      } else {
+        return `Hace unos segundos`;
+      }
+    }
+
+    // CALCULAR TIEMPO ASCENDENTE EN CAJAS PDM
     function formatElapsedTime(timestampMillis) {
       if (!timestampMillis) return '—';
       const now = Date.now();
@@ -911,8 +1009,8 @@
 
     onSnapshot(collection(db, "pdm_boxes"), (snapshot) => {
       pdmBoxesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      if (view === 'PDM') {
-        renderTable();
+      if (view === 'PDM' || view === 'dashboard') {
+        render();
       }
     });
 
@@ -926,7 +1024,7 @@
       }
     });
 
-    async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal) {
+    async function updateGlobalStatusInFirebase(num, mod, newSt, commentsVal, locationVal) {
       const batch = writeBatch(db);
       const nowStr = new Date().toLocaleString('es-MX');
 
@@ -935,6 +1033,7 @@
       if (matchingBoxes.length > 0) {
         matchingBoxes.forEach(b => {
           const updateObj = { status: newSt };
+          if (locationVal) updateObj.location = locationVal;
           if (newSt === 'mantenimiento') {
             updateObj.mantenimientoDate = b.mantenimientoDate || nowStr;
             updateObj.reportadoReparaciones = b.reportadoReparaciones || false;
@@ -952,7 +1051,7 @@
         const newBoxPayload = {
           number: num,
           module: targetModule,
-          location: 'Venus',
+          location: locationVal || 'Venus',
           comments: commentsVal || 'Reportado desde Recorrido Diario',
           status: newSt,
           recordedBy: currentUser || 'Sistema'
@@ -967,6 +1066,7 @@
       }
 
       await batch.commit();
+      await logBoxHistory(num, locationVal || 'Venus', newSt, commentsVal);
     }
 
     async function updateRecorridoInFirebase(cajaNum, estatusVal, comentariosVal) {
@@ -1056,6 +1156,7 @@
         document.getElementById('dashboard-view').style.display = 'block';
         document.getElementById('table-view').style.display = 'none';
         renderMantenimientoSummary();
+        renderPdmSummary();
         renderMovimientosSummary();
         renderModule('MSM');
         renderModule('NLDC');
@@ -1091,6 +1192,31 @@
           <div class="maint-stat-pill">🏭 NLDC: <strong>${nldcMaint}</strong></div>
           <div class="maint-stat-pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">✅ Reportadas: <strong>${reportadas}</strong></div>
           <div class="maint-stat-pill" style="background:#fef2f2; border-color:#fecaca; color:#991b1b;">⏳ Pendientes: <strong>${pendientes}</strong></div>
+        </div>
+      `;
+    }
+
+    // CAMBIO 3: RESUMEN DE CAJAS PDM EN DASHBOARD
+    function renderPdmSummary() {
+      const totalPdm = pdmBoxesList.length;
+      const vaciasPdm = pdmBoxesList.filter(b => (b.status || 'vacia') === 'vacia').length;
+      const cargadasPdm = pdmBoxesList.filter(b => b.status === 'cargada').length;
+
+      const card = document.getElementById('pdm-summary-card');
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <div style="background:#f3e8ff; border-radius:12px; padding:0.75rem; font-size:1.5rem;">📦</div>
+          <div>
+            <div style="font-size:0.8rem; font-weight:800; color:#6b21a8; text-transform:uppercase;">Módulo Cajas PDM</div>
+            <div style="font-size:1.1rem; font-weight:800; color:#172b40; margin-top:0.1rem;">
+              ${totalPdm} ${totalPdm === 1 ? 'caja registrada' : 'cajas registradas'} en PDM
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <div class="maint-stat-pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">🟢 Vacías: <strong>${vaciasPdm}</strong></div>
+          <div class="maint-stat-pill" style="background:#fffbeb; border-color:#fde68a; color:#b45309;">🟡 Cargadas: <strong>${cargadasPdm}</strong></div>
         </div>
       `;
     }
@@ -1239,7 +1365,7 @@
           { key: 'comments', label: 'Comentarios' },
           { key: 'status', label: 'Estatus' },
           { key: 'datetime', label: 'Fecha y Hora de Registro' },
-          { key: 'timestamp', label: 'Tiempo en NLDC (Ascendente)' },
+          { key: 'timestamp', label: 'Tiempo transcurrido (Ascendente)' },
           { key: null, label: 'Acciones' }
         ];
       } else if (isMov) {
@@ -1430,6 +1556,7 @@
         });
 
       } else if (isPdm) {
+        // CAMBIO 2: TABLA PDM CON EDITAR CONSERVANDO TIMESTAMPS
         filtered.forEach(item => {
           const tr = document.createElement('tr');
           const elapsedTimeStr = formatElapsedTime(item.timestamp);
@@ -1438,11 +1565,12 @@
           tr.innerHTML = `
             <td><strong style="font-size:1.05rem; color:#005ac7;">📦 ${item.number}</strong></td>
             <td>${item.comments || '—'}</td>
-            <td><span class="pill pill-vacia">${item.status || 'vacia'}</span></td>
+            <td><span class="pill pill-${item.status || 'vacia'}">${item.status || 'vacia'}</span></td>
             <td><span style="font-size:0.8rem; font-weight:700; color:#475569;">${item.datetime || '—'}</span></td>
             <td><span class="timer-badge">${elapsedTimeStr}</span></td>
             <td>
-              <div style="display:flex; align-items:center; gap:0.4rem;">
+              <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                <button type="button" class="secondary edit-pdm-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
                 <button type="button" class="danger delete-pdm-btn" data-id="${item.id}" data-num="${item.number}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>
                 ${userTag}
               </div>
@@ -1520,13 +1648,14 @@
           
           const userTag = item.recordedBy ? `<span class="user-tag-subtle" title="Modificado/Registrado por">👤 ${item.recordedBy}</span>` : '';
 
-          // CONDICIONAL DEL BOTÓN PDM VACÍA EN MOVIMIENTOS DIARIOS
           const showPdmBtn = isMov && (item.module === 'PDM');
+          const showHistoryBtn = isModuleView || isMaint;
 
           html += `<td>
                     <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
                       ${isMov ? `<button type="button" class="action-btn finish-btn" data-id="${item.id}">🔚 Fin de tarea</button>` : ''}
                       ${showPdmBtn ? `<button type="button" class="action-pdm-btn create-pdm-btn" data-id="${item.id}">📦 PDM Vacía</button>` : ''}
+                      ${showHistoryBtn ? `<button type="button" class="history-btn view-history-btn" data-number="${item.number}">📜 Historial</button>` : ''}
                       <button type="button" class="secondary edit-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">✏️ Editar</button>
                       ${isMov ? `<button type="button" class="danger delete-btn" data-id="${item.id}" style="padding:0.25rem 0.6rem; font-size:0.8rem;">🗑️ Eliminar</button>` : ''}
                       <select class="field st-select" data-id="${item.id}" style="padding:0.2rem; width:auto; font-size:0.8rem; margin-top:0;">
@@ -1603,7 +1732,44 @@
         });
       }
 
-      // ACCIÓN DEL BOTÓN PDM VACÍA EN MOVIMIENTOS DIARIOS
+      // CAMBIO 4: MOSTRAR MODAL EMERGENTE DE HISTORIAL
+      document.querySelectorAll('.view-history-btn').forEach(btn => {
+        btn.onclick = async function(e) {
+          const num = e.target.getAttribute('data-number');
+          document.getElementById('history-box-num').textContent = num;
+          const container = document.getElementById('history-timeline');
+          container.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#64748b;">Cargando historial...</div>';
+          document.getElementById('history-modal').style.display = 'flex';
+
+          const q = query(collection(db, "box_history"), orderBy("timestamp", "desc"));
+          const snapshot = await getDocs(q);
+          const historyDocs = snapshot.docs.map(doc => doc.data()).filter(h => h.number === num);
+
+          container.innerHTML = '';
+          if (historyDocs.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#94a3b8; font-weight:600;">No hay cambios registrados en el historial para esta caja.</div>';
+          } else {
+            historyDocs.forEach(item => {
+              const relTime = formatRelativeTime(item.timestamp);
+              const el = document.createElement('div');
+              el.className = 'timeline-item';
+              el.innerHTML = `
+                <div class="timeline-time">
+                  ${item.datetime || '—'}
+                  ${relTime ? `<span class="timeline-rel-time">${relTime}</span>` : ''}
+                </div>
+                <div class="timeline-details">
+                  <div><strong>Estatus:</strong> <span class="pill pill-${item.status}">${item.status}</span> | <strong>Ubicación:</strong> ${item.location}</div>
+                  ${item.comments ? `<div style="margin-top:0.2rem; color:#475569;">💬 ${item.comments}</div>` : ''}
+                  <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.3rem;">👤 Registrado por: ${item.recordedBy || 'Sistema'}</div>
+                </div>
+              `;
+              container.appendChild(el);
+            });
+          }
+        };
+      });
+
       document.querySelectorAll('.create-pdm-btn').forEach(btn => {
         btn.onclick = async function(e) {
           const movId = e.target.getAttribute('data-id');
@@ -1612,6 +1778,28 @@
       });
 
       if (isPdm) {
+        document.querySelectorAll('.edit-pdm-btn').forEach(btn => {
+          btn.onclick = function(e) {
+            const pdmId = e.target.getAttribute('data-id');
+            const item = pdmBoxesList.find(x => x.id === pdmId);
+            if (item) {
+              editingPdmDocId = pdmId;
+              editingDocId = null;
+              document.getElementById('modal-heading').textContent = 'Editar Caja PDM';
+              document.getElementById('box-number').value = item.number;
+              document.getElementById('box-number').disabled = true;
+              document.getElementById('module').value = 'PDM';
+              document.getElementById('module').disabled = true;
+              document.getElementById('location-field-group').style.display = 'none';
+              document.getElementById('comments').value = item.comments || '';
+              document.getElementById('status').value = item.status || 'vacia';
+              document.getElementById('movement-only').style.display = 'none';
+              document.getElementById('delete-box-section').style.display = 'none';
+              document.getElementById('form-modal').style.display = 'flex';
+            }
+          };
+        });
+
         document.querySelectorAll('.delete-pdm-btn').forEach(b => {
           b.onclick = async function() {
             const docId = this.getAttribute('data-id');
@@ -1703,8 +1891,11 @@
           
           if (item) {
             editingDocId = docId;
+            editingPdmDocId = null;
             document.getElementById('modal-heading').textContent = 'Editar Registro';
             document.getElementById('box-number').value = item.number || '';
+            document.getElementById('box-number').disabled = false;
+            document.getElementById('location-field-group').style.display = 'block';
             document.getElementById('module').value = item.module || 'MSM';
             document.getElementById('location').value = item.location || 'Venus';
             document.getElementById('comments').value = item.comments || '';
@@ -1756,13 +1947,16 @@
             const targetDoc = boxes.find(x => x.id === docId);
             if (targetDoc) {
               await setDoc(doc(db, "boxes", docId), { status: newSt, recordedBy: currentUser || 'Sistema' }, { merge: true });
-              updateGlobalStatusInFirebase(targetDoc.number, targetDoc.module, newSt);
+              updateGlobalStatusInFirebase(targetDoc.number, targetDoc.module, newSt, targetDoc.comments, targetDoc.location);
             }
           }
           showToast('Estatus actualizado');
         };
       });
     }
+
+    document.getElementById('close-history-modal').onclick = () => document.getElementById('history-modal').style.display = 'none';
+    document.getElementById('history-ok-btn').onclick = () => document.getElementById('history-modal').style.display = 'none';
 
     // BORRADO INDIVIDUAL DESDE MODAL DE EDICIÓN
     document.getElementById('delete-single-box-btn').onclick = async function() {
@@ -1922,8 +2116,10 @@
       document.getElementById('damage-modal').style.display = 'none';
     };
 
+    // CAMBIO 1: PREDETERMINAR ESTATUS ACTUAL AUTOMÁTICAMENTE SEGÚN LA CAJA
     function checkAndAutoAssignModule(val) {
-      const detectedMod = detectModuleByBoxNumber(val);
+      const cleanNum = val.trim().toUpperCase();
+      const detectedMod = detectModuleByBoxNumber(cleanNum);
       const moduleSelect = document.getElementById('module');
       const hint = document.getElementById('module-auto-hint');
 
@@ -1932,10 +2128,10 @@
         moduleSelect.disabled = true;
         hint.style.display = 'block';
 
-        const existingBox = boxes.find(b => b.number === val.trim().toUpperCase());
-        if (existingBox && existingBox.status === 'storage') {
-          document.getElementById('status').value = 'storage';
-          toggleStorageAlert('storage');
+        const existingBox = boxes.find(b => b.number === cleanNum);
+        if (existingBox && existingBox.status) {
+          document.getElementById('status').value = existingBox.status;
+          toggleStorageAlert(existingBox.status);
         }
       } else {
         moduleSelect.disabled = false;
@@ -1971,11 +2167,14 @@
 
     document.getElementById('open-form').onclick = function() {
       editingDocId = null;
+      editingPdmDocId = null;
       document.getElementById('modal-heading').textContent = 'Registrar caja';
       document.getElementById('entry-form').reset();
       
       const moduleSelect = document.getElementById('module');
       moduleSelect.disabled = false;
+      document.getElementById('box-number').disabled = false;
+      document.getElementById('location-field-group').style.display = 'block';
       document.getElementById('module-auto-hint').style.display = 'none';
       document.getElementById('storage-alert-box').style.display = 'none';
       document.getElementById('delete-box-section').style.display = 'none';
@@ -1995,11 +2194,26 @@
 
     document.getElementById('entry-form').onsubmit = async function(e) {
       e.preventDefault();
+
+      // EDITAR REGISTRO DE PDM CONSERVANDO TIMESTAMPS
+      if (editingPdmDocId) {
+        const comm = document.getElementById('comments').value.trim();
+        const st = document.getElementById('status').value;
+        await setDoc(doc(db, "pdm_boxes", editingPdmDocId), {
+          comments: comm,
+          status: st,
+          recordedBy: currentUser || 'Sistema'
+        }, { merge: true });
+
+        editingPdmDocId = null;
+        document.getElementById('form-modal').style.display = 'none';
+        showToast('Registro de caja PDM actualizado');
+        return;
+      }
+
       const num = document.getElementById('box-number').value.trim().toUpperCase();
-      
       const autoMod = detectModuleByBoxNumber(num);
       const mod = autoMod || document.getElementById('module').value;
-      
       const loc = document.getElementById('location').value;
       const comm = document.getElementById('comments').value.trim();
       const st = document.getElementById('status').value;
@@ -2040,7 +2254,7 @@
       }
 
       await setDoc(doc(db, collectionName, docId), payload, { merge: true });
-      updateGlobalStatusInFirebase(num, mod, st, comm);
+      updateGlobalStatusInFirebase(num, mod, st, comm, loc);
       
       editingDocId = null;
       document.getElementById('form-modal').style.display = 'none';
